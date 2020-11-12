@@ -4,26 +4,26 @@ import DataPacket from './DataPacket';
 export default class AddPlayerPacket extends DataPacket {
     static NetID = Identifiers.AddPlayerPacket;
 
-    public uuid: string = '';
-    public name: string = '';
-    public uniqueEntityId: bigint = BigInt(0);
-    public runtimeEntityId: bigint = BigInt(0);
-    public platformChatId: string = ''; // TODO
+    public uuid!: string;
+    public name!: string;
+    public uniqueEntityId!: bigint;
+    public runtimeEntityId!: bigint;
+    public platformChatId!: string;
 
-    public positionX: number = 0;
-    public positionY: number = 0;
-    public positionZ: number = 0;
+    public positionX!: number;
+    public positionY!: number;
+    public positionZ!: number;
 
-    public motionX: number = 0;
-    public motionY: number = 0;
-    public motionZ: number = 0;
+    public motionX!: number;
+    public motionY!: number;
+    public motionZ!: number;
 
-    public pitch: number = 0;
-    public yaw: number = 0;
-    public headYaw: number = 0;
+    public pitch!: number;
+    public yaw!: number;
+    public headYaw!: number;
 
-    public deviceId: string = '';
-    public buildPlatform: number = 0; // TODO
+    public deviceId!: string;
+    public buildPlatform!: number;
 
     public metadata = new Map();
 
@@ -32,7 +32,7 @@ export default class AddPlayerPacket extends DataPacket {
         this.writeString(this.name);
         this.writeVarLong(this.uniqueEntityId || this.runtimeEntityId);
         this.writeUnsignedVarLong(this.runtimeEntityId);
-        this.writeString(this.platformChatId);
+        this.writeString(this.platformChatId || "");
 
         this.writeLFloat(this.positionX);
         this.writeLFloat(this.positionY);
@@ -53,10 +53,15 @@ export default class AddPlayerPacket extends DataPacket {
             this.writeUnsignedVarInt(0); // TODO: Adventure settings
         }
 
-        this.writeLLong(BigInt(0)); // Unknown
+        // userId
+        if (this.uniqueEntityId & 1n) {
+            this.writeLLong(-1n * ((this.uniqueEntityId + 1n) >> 1n));
+        } else {
+            this.writeLLong(this.uniqueEntityId >> 1n);
+        }
 
         this.writeUnsignedVarInt(0); // TODO: Entity links
         this.writeString(this.deviceId);
-        this.writeLInt(this.buildPlatform);
+        this.writeLInt(this.buildPlatform || -1);  // TODO: OS enum
     }
 }

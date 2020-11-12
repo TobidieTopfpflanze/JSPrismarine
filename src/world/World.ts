@@ -10,9 +10,9 @@ import Prismarine from '../Prismarine';
 import Chunk from './chunk/Chunk';
 import CoordinateUtils from './CoordinateUtils';
 import { GameruleManager, Rules } from '../world/GameruleManager';
+import SharedSeedRandom from './util/SharedSeedRandom';
 
 const UUID = require('../utils/uuid').default;
-const SharedSeedRandom = require('./util/shared-seed-random');
 
 interface WorldData {
     name: string;
@@ -32,7 +32,7 @@ export default class World {
     private currentTick: number = 0;
     private provider: any; // TODO: interface
     private server: Prismarine;
-    private seed: number | bigint;
+    private seed: SharedSeedRandom;
     private generator: any; // TODO: interface
 
     constructor({
@@ -87,7 +87,7 @@ export default class World {
             player.update(timestamp);
 
             if (this.currentTick % 5)
-                player.getPlayerConnection().sendTime(this.currentTick);
+                player.getConnection().sendTime(this.currentTick);
         }
 
         // TODO: tick chunks
@@ -165,8 +165,8 @@ export default class World {
      * Returns a chunk from minecraft block positions x and z.
      */
     public async getChunkAt(
-        x: number | VarInt,
-        z: number | VarInt,
+        x: number,
+        z: number,
         generate = false
     ): Promise<Chunk> {
         return await this.getChunk(
@@ -282,7 +282,7 @@ export default class World {
         blockUpdate.z = placedPosition.getZ();
         blockUpdate.BlockRuntimeId = block.getRuntimeId();
         for (let p of this.server.getOnlinePlayers()) {
-            p.getPlayerConnection().sendDataPacket(blockUpdate);
+            p.getConnection().sendDataPacket(blockUpdate);
         }
 
         const pk = new LevelSoundEventPacket();
@@ -298,7 +298,7 @@ export default class World {
         pk.disableRelativeVolume = false;
 
         for (let p of player.getPlayersInChunk()) {
-            p.getPlayerConnection().sendDataPacket(pk);
+            p.getConnection().sendDataPacket(pk);
         }
     }
 

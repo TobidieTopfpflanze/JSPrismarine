@@ -5,10 +5,12 @@ import Gamemode from '../world/Gamemode';
 import PlayerConnection from './PlayerConnection';
 import PlayerInventory from '../inventory/PlayerInventory';
 import Inventory from '../inventory/Inventory';
-import Skin from '../utils/skin/skin';
+import Skin from '../utils/skin/Skin';
 import Device from '../utils/Device';
 import Chunk from '../world/chunk/Chunk';
 import ChatEvent from '../events/chat/ChatEvent';
+import withDeprecated from '../plugin/hoc/withDeprecated';
+import LoggerBuilder from '../utils/Logger';
 
 export enum PlayerPermission {
     Visitor,
@@ -92,7 +94,7 @@ export default class Player extends Entity {
         // Update movement for every player
         for (const player of this.server.getOnlinePlayers()) {
             if (player === this) continue;
-            player.getPlayerConnection().broadcastMove(this);
+            player.getConnection().broadcastMove(this);
             this.playerConnection.broadcastMove(player);
         }
 
@@ -128,8 +130,13 @@ export default class Player extends Entity {
         return this.server;
     }
 
-    public getPlayerConnection() {
+    public getConnection() {
         return this.playerConnection;
+    }
+
+    @withDeprecated(new Date('12/11/2020'), 'getConnection')
+    public getPlayerConnection() {
+        return this.getConnection();
     }
 
     public getAddress() {

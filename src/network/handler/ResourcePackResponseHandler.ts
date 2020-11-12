@@ -25,7 +25,7 @@ export default class ResourcePackResponseHandler {
         let pk;
         if (packet.status === ResourcePackStatus.HaveAllPacks) {
             pk = new ResourcePackStackPacket();
-            player.getPlayerConnection().sendDataPacket(pk);
+            player.getConnection().sendDataPacket(pk);
         } else if (packet.status === ResourcePackStatus.Completed) {
             // Emit playerSpawn event
             const spawnEvent = new PlayerSpawnEvent(player);
@@ -39,31 +39,27 @@ export default class ResourcePackResponseHandler {
 
             const world = player.getWorld();
             const worldSpawnPos = await world.getSpawnPosition();
-            pk.worldSpawnX = worldSpawnPos.getX();
-            pk.worldSpawnY = worldSpawnPos.getY();
-            pk.worldSpawnZ = worldSpawnPos.getZ();
+            pk.worldSpawnPos = worldSpawnPos;
 
             // TODO: replace with actual data soon
-            pk.playerX = worldSpawnPos.getX();
-            pk.playerY = worldSpawnPos.getY();
-            pk.playerZ = worldSpawnPos.getZ();
+            pk.playerPos = worldSpawnPos;
 
             pk.levelId = world.getUniqueId();
             pk.worldName = world.getName();
             pk.gamerules = world.getGameruleManager().getGamerules();
-            player.getPlayerConnection().sendDataPacket(pk);
+            player.getConnection().sendDataPacket(pk);
 
-            player.getPlayerConnection().sendTime(world.getTicks());
+            player.getConnection().sendTime(world.getTicks());
 
             player
-                .getPlayerConnection()
+                .getConnection()
                 .sendDataPacket(new AvailableActorIdentifiersPacket());
             player
-                .getPlayerConnection()
+                .getConnection()
                 .sendDataPacket(new BiomeDefinitionListPacket());
 
             player
-                .getPlayerConnection()
+                .getConnection()
                 .sendAttributes(player.attributes.getDefaults());
 
             server
@@ -78,18 +74,18 @@ export default class ResourcePackResponseHandler {
 
             player.setNameTag(player.getUsername());
             // TODO: always visible nametag
-            player.getPlayerConnection().sendMetadata();
-            player.getPlayerConnection().sendAvailableCommands();
-            player.getPlayerConnection().sendInventory();
+            player.getConnection().sendMetadata();
+            player.getConnection().sendAvailableCommands();
+            player.getConnection().sendInventory();
 
             if (player.gamemode === Gamemode.Creative)
-                player.getPlayerConnection().sendCreativeContents();
+                player.getConnection().sendCreativeContents();
 
             // First add
-            player.getPlayerConnection().addToPlayerList();
+            player.getConnection().addToPlayerList();
             // Then retrive other players
             if (server.getOnlinePlayers().length > 1) {
-                player.getPlayerConnection().sendPlayerList();
+                player.getConnection().sendPlayerList();
             }
 
             // Announce connection
