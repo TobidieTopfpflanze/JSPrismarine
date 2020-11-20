@@ -87,7 +87,8 @@ export default class PacketBinaryStream extends BinaryStream {
                         data: this.readString()
                     }),
                     frames: this.readLFloat(),
-                    type: this.readLInt()
+                    type: this.readLInt(),
+                    expression: this.readLInt()
                 })
             );
         }
@@ -161,6 +162,7 @@ export default class PacketBinaryStream extends BinaryStream {
             this.writeSkinImage(animation.image);
             this.writeLInt(animation.type);
             this.writeLFloat(animation.frames);
+            this.writeLInt(animation.expression);
         }
 
         // Cape image
@@ -386,7 +388,7 @@ export default class PacketBinaryStream extends BinaryStream {
             return this.writeVarInt(0);
         }
 
-        this.writeVarInt(itemstack.getRuntimeId());
+        this.writeVarInt(itemstack.getId());
         this.writeVarInt(((itemstack.meta & 0x7fff) << 8) | itemstack.count);
 
         if (itemstack.nbt !== null) {
