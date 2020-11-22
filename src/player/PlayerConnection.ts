@@ -50,32 +50,29 @@ export default class PlayerConnection {
     }
 
     // To refactor
-    public async sendDataPacket(
-        packet: any,
-        _needACK = false,
-        _immediate = false
-    ) {
-        const encapsulated: EncapsulatedPacket = await new Promise(
-            (resolve) => {
-                let batch = new BatchPacket();
-                batch.addPacket(packet);
-                batch.encode();
+    public sendDataPacket(packet: any, _needACK = false, _immediate = false) {
+        new Promise((resolve) => {
+            const batch = new BatchPacket();
+            batch.addPacket(packet);
+            batch.encode();
 
-                // Add this in raknet
-                let sendPacket = new EncapsulatedPacket();
-                sendPacket.reliability = 0;
-                sendPacket.buffer = batch.getBuffer();
+            // Add this in raknet
+            const sendPacket = new EncapsulatedPacket();
+            sendPacket.reliability = 0;
+            sendPacket.buffer = batch.getBuffer();
 
-                resolve(sendPacket);
-            }
+            resolve(sendPacket);
+        }).then((encapsulated) =>
+            this.connection.addEncapsulatedToQueue(
+                encapsulated as EncapsulatedPacket
+            )
         );
-        this.connection.addEncapsulatedToQueue(encapsulated);
     }
 
     public async update(_tick: number) {
         if (this.chunkSendQueue.size > 0) {
-            this.chunkSendQueue.forEach((chunk: any) => {
-                let encodedPos = CoordinateUtils.encodePos(
+            for (const chunk of this.chunkSendQueue) {
+                const encodedPos = CoordinateUtils.encodePos(
                     chunk.getX(),
                     chunk.getZ()
                 );
@@ -85,7 +82,7 @@ export default class PlayerConnection {
 
                 this.sendChunk(chunk);
                 this.chunkSendQueue.delete(chunk);
-            });
+            }
         }
 
         await this.needNewChunks();
@@ -162,7 +159,7 @@ export default class PlayerConnection {
             return 0;
         });
 
-        await Promise.all(
+        Promise.all(
             chunksToSend.map(async (chunk) => {
                 let hash = CoordinateUtils.encodePos(chunk[0], chunk[1]);
                 if (forceResend) {
@@ -171,7 +168,7 @@ export default class PlayerConnection {
                         !this.loadingChunks.has(hash)
                     ) {
                         this.loadingChunks.add(hash);
-                        await this.requestChunk(chunk[0], chunk[1]);
+                        this.requestChunk(chunk[0], chunk[1]);
                     } else {
                         let loadedChunk = await this.player
                             .getWorld()
@@ -180,7 +177,7 @@ export default class PlayerConnection {
                     }
                 } else {
                     this.loadingChunks.add(hash);
-                    await this.requestChunk(chunk[0], chunk[1]);
+                    this.requestChunk(chunk[0], chunk[1]);
                 }
             })
         );
@@ -215,8 +212,11 @@ export default class PlayerConnection {
         }
     }
 
-    public async requestChunk(x: number, z: number) {
-        this.chunkSendQueue.add(await this.player.getWorld().getChunk(x, z));
+    public requestChunk(x: number, z: number) {
+        this.player
+            .getWorld()
+            .getChunk(x, z)
+            .then((chunk) => this.chunkSendQueue.add(chunk));
     }
 
     public sendInventory() {
