@@ -13,13 +13,15 @@ import NewIncomingConnection from './protocol/NewIncomingConnection';
 import InetAddress from './utils/InetAddress';
 import Identifiers from './protocol/Identifiers';
 import Packet from './protocol/Packet';
+import PacketReliability, { isReliable } from './protocol/ReliabilityLayer';
+import RakNetListener from './RakNetListener';
 
-enum Priority {
+export enum Priority {
     NORMAL,
     IMMEDIATE
 }
 
-enum Status {
+export enum Status {
     CONNECTING,
     CONNECTED,
     DISCONNECTING,
@@ -27,9 +29,9 @@ enum Status {
 }
 
 export default class Connection {
-    private listener: Listener;
+    private listener: RakNetListener;
     private mtuSize: number;
-    private address: InetAddress;
+    protected address: InetAddress;
 
     // Client connection state
     private state = Status.CONNECTING;
@@ -45,18 +47,17 @@ export default class Connection {
     // Queue holding packets to send
     private sendQueue = new DataPacket();
 
+    // Map holding splits of split packets
     private splitPackets: Map<
         number,
         Map<number, EncapsulatedPacket>
     > = new Map();
 
-    // Need documentation
-    private windowStart = -1;
-    private windowEnd = 2048;
-    private reliableWindowStart = 0;
-    private reliableWindowEnd = 2048;
-    private reliableWindow = new Map();
-    private lastReliableIndex = -1;
+    // Map holding out of order reliable packets
+    // private reliableMissing: Map<number, EncapsulatedPacket> = new Map();
+    // Equivalent to recivedPacketBaseIndex in official RakNet
+    // used to check if a reliable packet is out of order
+    private lastReliableIndex = 0;
 
     // Array containing received sequence numbers
     private receivedWindow: Set<number> = new Set();
@@ -67,13 +68,18 @@ export default class Connection {
     private messageIndex = 0;
     private channelIndex: Array<number> = [];
 
+    // Internal split Id
     private splitId = 0;
 
     // Last timestamp of packet received, helpful for timeout
     private lastUpdate: number = Date.now();
     private active = false;
 
-    constructor(listener: Listener, mtuSize: number, address: InetAddress) {
+    constructor(
+        listener: RakNetListener,
+        mtuSize: number,
+        address: InetAddress
+    ) {
         this.listener = listener;
         this.mtuSize = mtuSize;
         this.address = address;
@@ -138,16 +144,6 @@ export default class Connection {
                 })
             );
 
-            Promise.all(
-                Array.from(this.receivedWindow).map((seq) => {
-                    if (seq < this.windowStart) {
-                        this.receivedWindow.delete(seq);
-                    } else {
-                        return false;
-                    }
-                })
-            );
-
             this.sendPacketQueue();
 
             resolve();
@@ -185,11 +181,7 @@ export default class Connection {
 
             // Check if we already received packet and so we don't handle them
             // i still need to understand what are those window stuff
-            if (
-                dataPacket.sequenceNumber < this.windowStart ||
-                dataPacket.sequenceNumber > this.windowEnd ||
-                this.receivedWindow.has(dataPacket.sequenceNumber)
-            ) {
+            if (this.receivedWindow.has(dataPacket.sequenceNumber)) {
                 return resolve();
             }
 
@@ -230,11 +222,8 @@ export default class Connection {
             }
 
             // If we received a lost packet we sent in NACK or a normal sequenced one
-            // needs more documentation for window start and end
             if (diff >= 1) {
                 this.lastSequenceNumber = dataPacket.sequenceNumber;
-                this.windowStart += diff;
-                this.windowEnd += diff;
             }
 
             // Handle encapsulated
@@ -290,108 +279,76 @@ export default class Connection {
         });
     }
 
-    public async receivePacket(packet: EncapsulatedPacket): Promise<void> {
-        return await new Promise(async (resolve) => {
-            if (typeof packet.messageIndex === 'undefined') {
-                // Handle the packet directly if it doesn't have a message index
+    public receivePacket(packet: EncapsulatedPacket): void {
+        if (!isReliable(packet.reliability)) {
+            // Handle the packet directly if it doesn't have a message index
+            this.handlePacket(packet);
+        } else {
+            // TODO: Restore out of order packets first
+            const holeCount = this.lastReliableIndex - packet.messageIndex;
+            // console.log('[RAKNET] Waiting on reliableMessageIndex=%d missingDiff=%d datagramNumber=%d', packet.messageIndex, holeCount, this.lastSequenceNumber);
+
+            if (holeCount == 0) {
                 this.handlePacket(packet);
-            } else {
-                // Seems like we are checking the same stuff like before
-                // but just with reliable packets
-                if (
-                    packet.messageIndex < this.reliableWindowStart ||
-                    packet.messageIndex > this.reliableWindowEnd
-                ) {
-                    return resolve();
-                }
-
-                if (packet.messageIndex - this.lastReliableIndex === 1) {
-                    this.lastReliableIndex++;
-                    this.reliableWindowStart++;
-                    this.reliableWindowEnd++;
-                    await this.handlePacket(packet);
-
-                    if (this.reliableWindow.size > 0) {
-                        let windows = [...this.reliableWindow.entries()];
-                        let reliableWindow = new Map();
-                        windows.sort((a, b) => a[0] - b[0]);
-
-                        for (const [k, v] of windows) {
-                            reliableWindow.set(k, v);
-                        }
-
-                        this.reliableWindow = reliableWindow;
-
-                        for (let [seqIndex, pk] of this.reliableWindow) {
-                            if (seqIndex - this.lastReliableIndex !== 1) {
-                                break;
-                            }
-                            this.lastReliableIndex++;
-                            this.reliableWindowStart++;
-                            this.reliableWindowEnd++;
-                            this.handlePacket(pk);
-
-                            this.reliableWindow.delete(seqIndex);
-                        }
-                    }
-                } else {
-                    this.reliableWindow.set(packet.messageIndex, packet);
-                }
+                this.lastReliableIndex++;
+                return;
             }
-
-            resolve();
-        });
+        }
     }
 
     public addEncapsulatedToQueue(
         packet: EncapsulatedPacket,
         flags = Priority.NORMAL
     ) {
-        if (
-            packet.reliability === 2 ||
-            packet.reliability === 3 ||
-            packet.reliability === 4 ||
-            packet.reliability === 6 ||
-            packet.reliability === 7
-        ) {
+        if (isReliable(packet.reliability)) {
             packet.messageIndex = this.messageIndex++;
 
-            if (packet.reliability === 3) {
+            if (packet.reliability == PacketReliability.RELIABLE_ORDERED) {
                 packet.orderIndex = this.channelIndex[packet.orderChannel]++;
             }
         }
 
-        if (packet.getTotalLength() + 4 > this.mtuSize) {
+        // Split packet if bigger than MTU size
+        if (packet.getByteLength() > this.mtuSize) {
             // Split the buffer into chunks
-            let buffers = [],
-                i = 0,
-                splitIndex = 0;
-            while (i < packet.buffer.length) {
+            let buffers: Map<number, Buffer> = new Map(),
+                index: number = 0,
+                splitIndex: number = 0;
+
+            while (index < packet.buffer.length) {
                 // Push format: [chunk index: int, chunk: buffer]
-                buffers.push([
-                    (splitIndex += 1) - 1,
-                    packet.buffer.slice(i, (i += this.mtuSize - 60))
-                ]);
+                buffers.set(
+                    splitIndex++,
+                    packet.buffer.slice(index, (index += this.mtuSize))
+                );
             }
-            let splitID = ++this.splitId % 65536;
-            for (let [count, buffer] of buffers) {
-                let pk = new EncapsulatedPacket();
-                pk.splitId = splitID;
-                pk.splitCount = buffers.length;
+
+            for (const [index, buffer] of buffers) {
+                const pk = new EncapsulatedPacket();
+                pk.splitId = this.splitId;
+                pk.splitCount = buffers.size;
                 pk.reliability = packet.reliability;
-                pk.splitIndex = count as number;
-                pk.buffer = buffer as Buffer;
-                if (count > 0) {
+                pk.splitIndex = index;
+                pk.buffer = buffer;
+
+                if (index != 0) {
                     pk.messageIndex = this.messageIndex++;
-                } else {
-                    pk.messageIndex = packet.messageIndex;
                 }
-                if (pk.reliability === 3) {
+
+                // Figure out if the message index differs
+                // from 0 with reliable as reliability
+                // pk.messageIndex = packet.messageIndex
+
+                if (pk.reliability == PacketReliability.RELIABLE_ORDERED) {
                     pk.orderChannel = packet.orderChannel;
                     pk.orderIndex = packet.orderIndex;
                 }
-                this.addToQueue(pk, flags | Priority.IMMEDIATE);
+
+                this.addToQueue(pk, flags);
             }
+
+            // Increase the internal split Id
+            this.splitId++;
         } else {
             this.addToQueue(packet, flags);
         }
@@ -412,7 +369,7 @@ export default class Connection {
             return;
         }
         let length = this.sendQueue.getLength();
-        if (length + pk.getTotalLength() > this.mtuSize) {
+        if (length + pk.getByteLength() > this.mtuSize) {
             this.sendPacketQueue();
         }
 
@@ -433,7 +390,24 @@ export default class Connection {
 
             if (id < 0x80) {
                 if (this.state === Status.CONNECTING) {
-                    if (id === Identifiers.ConnectionRequest) {
+                    if (id === Identifiers.ConnectionRequestAccepted) {
+                        const dataPacket = new ConnectionRequestAccepted(
+                            packet.buffer
+                        );
+                        dataPacket.decode();
+
+                        const pk = new NewIncomingConnection();
+                        pk.requestTimestamp = BigInt(Date.now());
+                        pk.acceptedTimestamp = BigInt(Date.now());
+                        pk.address = dataPacket.clientAddress;
+                        pk.encode();
+
+                        const sendPk = new EncapsulatedPacket();
+                        sendPk.reliability = 0;
+                        sendPk.buffer = pk.getBuffer();
+
+                        this.addToQueue(sendPk, Priority.IMMEDIATE);
+                    } else if (id === Identifiers.ConnectionRequest) {
                         this.handleConnectionRequest(packet.buffer).then(
                             (encapsulated) => {
                                 this.addToQueue(
@@ -448,9 +422,15 @@ export default class Connection {
                         );
                         dataPacket.decode();
 
+                        // Client bots will work just in offline mode
+                        const offlineMode = false; // TODO: from config
+
                         let serverPort = this.listener.getSocket().address()
                             .port;
-                        if (dataPacket.address.getPort() === serverPort) {
+                        if (
+                            !offlineMode ??
+                            dataPacket.address.getPort() === serverPort
+                        ) {
                             this.state = Status.CONNECTED;
                             this.listener.emit('openConnection', this);
                         }
@@ -538,7 +518,7 @@ export default class Connection {
             number,
             EncapsulatedPacket
         >;
-        if (localSplits.size === packet.splitCount) {
+        if (localSplits.size == packet.splitCount) {
             const pk = new EncapsulatedPacket();
             const stream = new BinaryStream();
             Array.from(localSplits.values()).map((packet) =>
@@ -573,7 +553,7 @@ export default class Connection {
         );
     }
 
-    close() {
+    public close() {
         let stream = new BinaryStream(
             Buffer.from('\x00\x00\x08\x15', 'binary')
         );
@@ -583,11 +563,15 @@ export default class Connection {
         ); // Client discconect packet 0x15
     }
 
+    public getState(): number {
+        return this.state;
+    }
+
     public isActive(): boolean {
         return this.active;
     }
 
-    public getListener(): Listener {
+    public getListener(): RakNetListener {
         return this.listener;
     }
 

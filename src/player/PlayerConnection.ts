@@ -33,6 +33,7 @@ import Skin from '../utils/skin/Skin';
 import UUID from '../utils/uuid';
 import EncapsulatedPacket from '../network/raknet/protocol/EncapsulatedPacket';
 import { Attribute } from '../entity/attribute';
+import DataPacket from '../network/packet/DataPacket';
 
 const CreativeContentEntry = require('../network/type/creative-content-entry');
 const { creativeitems } = require('@jsprismarine/bedrock-data');
@@ -52,23 +53,17 @@ export default class PlayerConnection {
     }
 
     // To refactor
-    public sendDataPacket(packet: any, _needACK = false, _immediate = false) {
-        new Promise((resolve) => {
-            const batch = new BatchPacket();
-            batch.addPacket(packet);
-            batch.encode();
+    public sendDataPacket(packet: DataPacket): void {
+        const batch = new BatchPacket();
+        batch.addPacket(packet);
+        batch.encode();
 
-            // Add this in raknet
-            const sendPacket = new EncapsulatedPacket();
-            sendPacket.reliability = 0;
-            sendPacket.buffer = batch.getBuffer();
+        // Add this in raknet
+        const sendPacket = new EncapsulatedPacket();
+        sendPacket.reliability = 0;
+        sendPacket.buffer = batch.getBuffer();
 
-            resolve(sendPacket);
-        }).then((encapsulated) =>
-            this.connection.addEncapsulatedToQueue(
-                encapsulated as EncapsulatedPacket
-            )
-        );
+        this.connection.addEncapsulatedToQueue(sendPacket);
     }
 
     public async update(_tick: number) {
@@ -87,10 +82,10 @@ export default class PlayerConnection {
             }
         }
 
-        await this.needNewChunks();
+        this.needNewChunks();
     }
 
-    public async needNewChunks(forceResend = false) {
+    public needNewChunks(forceResend = false) {
         let currentXChunk = CoordinateUtils.fromBlockToChunk(
             this.player.getX()
         );
@@ -99,7 +94,7 @@ export default class PlayerConnection {
         );
 
         let viewDistance = this.player.viewDistance;
-        let chunksToSend = [];
+        let chunksToSend: Array<Array<number>> = [];
 
         for (
             let sendXChunk = -viewDistance;
@@ -161,28 +156,26 @@ export default class PlayerConnection {
             return 0;
         });
 
-        Promise.all(
-            chunksToSend.map(async (chunk) => {
-                let hash = CoordinateUtils.encodePos(chunk[0], chunk[1]);
-                if (forceResend) {
-                    if (
-                        !this.loadedChunks.has(hash) &&
-                        !this.loadingChunks.has(hash)
-                    ) {
-                        this.loadingChunks.add(hash);
-                        this.requestChunk(chunk[0], chunk[1]);
-                    } else {
-                        let loadedChunk = await this.player
-                            .getWorld()
-                            .getChunk(chunk[0], chunk[1]);
-                        this.sendChunk(loadedChunk);
-                    }
-                } else {
+        for (const chunk of chunksToSend) {
+            let hash = CoordinateUtils.encodePos(chunk[0], chunk[1]);
+            if (forceResend) {
+                if (
+                    !this.loadedChunks.has(hash) &&
+                    !this.loadingChunks.has(hash)
+                ) {
                     this.loadingChunks.add(hash);
                     this.requestChunk(chunk[0], chunk[1]);
+                } else {
+                    this.player
+                        .getWorld()
+                        .getChunk(chunk[0], chunk[1])
+                        .then((loadedChunk) => this.sendChunk(loadedChunk));
                 }
-            })
-        );
+            } else {
+                this.loadingChunks.add(hash);
+                this.requestChunk(chunk[0], chunk[1]);
+            }
+        }
 
         let unloaded = false;
 
@@ -209,7 +202,7 @@ export default class PlayerConnection {
             }
         }
 
-        if (!unloaded || !(this.chunkSendQueue.size == 0)) {
+        if (unloaded ?? !(this.chunkSendQueue.size == 0)) {
             this.sendNetworkChunkPublisher();
         }
     }
@@ -480,8 +473,8 @@ export default class PlayerConnection {
      * Spawn the player to another player
      */
     public sendSpawn(player: Player) {
-        let pk = new AddPlayerPacket();
-        pk.uuid = UUID.fromString(this.player.uuid);
+        const pk = new AddPlayerPacket();
+        pk.uuid = UUID.fromString(this.player.uuid) ?? UUID.fromRandom(); // TODO: temp solution
         pk.runtimeEntityId = BigInt(this.player.runtimeId);
         pk.name = this.player.getUsername();
 
@@ -522,6 +515,6 @@ export default class PlayerConnection {
         let pk = new DisconnectPacket();
         pk.hideDisconnectionWindow = false;
         pk.message = reason;
-        this.sendDataPacket(pk, false, true);
+        this.sendDataPacket(pk);
     }
 }
