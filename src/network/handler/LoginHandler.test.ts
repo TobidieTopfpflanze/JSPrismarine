@@ -22,17 +22,25 @@ describe('network', () => {
                             });
                             done();
                         }
-                    })
+                    }),
+                    kick: (message) => {
+                        expect(message).toBe('You have been banned!');
+                        done();
+                    }
                 };
 
-                LoginHandler.handle(
+                const handler = new LoginHandler();
+                handler.handle(
                     pk,
                     {
                         getBanManager: () => ({
                             isBanned: (player) => {
                                 return false;
                             }
-                        })
+                        }),
+                        getPlayerByExactName(name: string) {
+                            return null;
+                        }
                     } as any,
                     player as any
                 );
@@ -56,14 +64,18 @@ describe('network', () => {
                     }
                 };
 
-                LoginHandler.handle(
+                const handler = new LoginHandler();
+                handler.handle(
                     pk,
                     {
                         getBanManager: () => ({
                             isBanned: (player) => {
                                 return '';
                             }
-                        })
+                        }),
+                        getPlayerByExactName(name: string) {
+                            return null;
+                        }
                     } as any,
                     player as any
                 );
@@ -89,14 +101,18 @@ describe('network', () => {
                     }
                 };
 
-                LoginHandler.handle(
+                const handler = new LoginHandler();
+                handler.handle(
                     pk,
                     {
                         getBanManager: () => ({
                             isBanned: (player) => {
                                 return 'a reason';
                             }
-                        })
+                        }),
+                        getPlayerByExactName(name: string) {
+                            return null;
+                        }
                     } as any,
                     player as any
                 );

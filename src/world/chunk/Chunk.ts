@@ -66,7 +66,7 @@ export default class Chunk {
         } else {
             if (heightMap.length !== 0)
                 throw new Error(
-                    `Wrong HrightMap value count, expected 256, got ${heightMap.length}`
+                    `Wrong HeightMap value count, expected 256, got ${heightMap.length}`
                 );
             this.#heightMap = new Array(256).fill(this.#height * 16);
         }
@@ -108,24 +108,33 @@ export default class Chunk {
     }
 
     public getFullBlock(x: number, y: number, z: number) {
+        if (y < 0) throw new Error(`y can't be less than 0`);
+
         return this.getSubChunk(y >> 4, true).getFullBlock(x, y & 0x0f, z);
     }
 
     public getBlockId(x: number, y: number, z: number) {
+        if (y < 0) throw new Error(`y can't be less than 0`);
+
         return this.getSubChunk(y >> 4, true).getBlockId(x, y & 0x0f, z);
     }
 
     public getBlockMetadata(x: number, y: number, z: number) {
+        if (y < 0) throw new Error(`y can't be less than 0`);
+
         return this.getSubChunk(y >> 4, true).getBlockMetadata(x, y & 0x0f, z);
     }
 
     public setBlockId(x: number, y: number, z: number, id: number) {
+        if (y < 0) throw new Error(`y can't be less than 0`);
+
         this.getSubChunk(y >> 4, true).setBlockId(x, y & 0x0f, z, id);
         this.#hasChanged = true;
     }
 
     public setBlock(x: number, y: number, z: number, block: Block | null) {
-        if (!block) return;
+        if (y < 0) throw new Error(`y can't be less than 0`);
+        if (!block) throw new Error(`block can't be undefined or null`);
 
         this.getSubChunk(y >> 4, true).setBlock(x, y & 0x0f, z, block);
         this.#hasChanged = true;
