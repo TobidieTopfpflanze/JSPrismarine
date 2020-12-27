@@ -1,30 +1,25 @@
-import BinaryStream from '@jsprismarine/jsbinaryutils';
 import { Attribute } from '../entity/attribute';
+import BinaryStream from '@jsprismarine/jsbinaryutils';
+import BlockPosition from '../world/BlockPosition';
+import CreativeContentEntry from './type/CreativeContentEntry';
 import { FlagType } from '../entity/metadata';
+import { PlayerListEntry } from './packet/PlayerListPacket';
 import Skin from '../utils/skin/Skin';
-import SkinPersona from '../utils/skin/skin-persona/SkinPersona';
-import SkinPersonaPiece from '../utils/skin/skin-persona/SkinPersonaPiece';
-import SkinPersonaPieceTintColor from '../utils/skin/skin-persona/SkinPersonaPieceTintColor';
-import SkinAnimation from '../utils/skin/SkinAnimation';
-import SkinCape from '../utils/skin/SkinCape';
 import SkinImage from '../utils/skin/SkinImage';
 import UUID from '../utils/UUID';
-import BlockPosition from '../world/BlockPosition';
-import { PlayerListEntry } from './packet/PlayerListPacket';
-import CreativeContentEntry from './type/creative-content-entry';
-
-const CommandOriginData = require('./type/command-origin-data');
-const CommandOrigin = require('./type/command-origin');
-
-const ItemStackRequest = require('./type/item-stack-requests/item-stack-request');
-const ItemStackRequestTake = require('./type/item-stack-requests/take');
-const ItemStackRequestPlace = require('./type/item-stack-requests/place');
-const ItemStackRequestDrop = require('./type/item-stack-requests/drop');
-const ItemStackRequestSwap = require('./type/item-stack-requests/swap');
-const ItemStackRequestDestroy = require('./type/item-stack-requests/destroy');
-const ItemStackRequestCreativeCreate = require('./type/item-stack-requests/creative-create');
-const ItemStackRequestConsume = require('./type/item-stack-requests/consume');
-
+import CommandOriginData from './type/CommandOriginData';
+import CommandOriginType from './type/CommandOriginType';
+import ItemStackRequestConsume from './type/itemStackRequest/ConsumeStack';
+import ItemStackRequestCreativeCreate from './type/itemStackRequest/CreativeCreate';
+import ItemStackRequestDestroy from './type/itemStackRequest/Destroy';
+import ItemStackRequestDrop from './type/itemStackRequest/Drop';
+import ItemStackRequest from './type/itemStackRequest/ItemStackRequest';
+import ItemStackRequestSlotInfo from './type/itemStackRequest/ItemStackRequestSlotInfo';
+import ItemStackRequestPlace from './type/itemStackRequest/Place';
+import ItemStackRequestSwap from './type/itemStackRequest/Swap';
+import ItemStackRequestTake from './type/itemStackRequest/Take';
+import Item from '../item/Item';
+import Block from '../block/Block';
 export default class PacketBinaryStream extends BinaryStream {
     /**
      * Returns a string encoded into the buffer.
@@ -300,26 +295,28 @@ export default class PacketBinaryStream extends BinaryStream {
         return n % 1 !== 0;
     }
 
-    public writeEntityMetadata(metadata: any) {
+    public writeEntityMetadata(
+        metadata: Map<number, [number, string | number | bigint | boolean]>
+    ) {
         this.writeUnsignedVarInt(metadata.size);
         for (const [index, value] of metadata) {
             this.writeUnsignedVarInt(index);
             this.writeUnsignedVarInt(value[0]);
             switch (value[0]) {
                 case FlagType.BYTE:
-                    this.writeByte(value[1]);
+                    this.writeByte(value[1] as number);
                     break;
                 case FlagType.FLOAT:
-                    this.writeLFloat(value[1]);
+                    this.writeLFloat(value[1] as number);
                     break;
                 case FlagType.LONG:
-                    this.writeVarLong(value[1]);
+                    this.writeVarLong(value[1] as bigint);
                     break;
                 case FlagType.STRING:
-                    this.writeString(value[1]);
+                    this.writeString(value[1] as string);
                     break;
                 case FlagType.SHORT:
-                    this.writeLShort(value[1]);
+                    this.writeLShort(value[1] as number);
                     break;
                 default:
                 //this.#server.getLogger().warn(`Unknown meta type ${value}`);
@@ -337,13 +334,10 @@ export default class PacketBinaryStream extends BinaryStream {
             };
         }
 
-        let name = null;
         let temp = this.readVarInt();
-        let amount = temp & 0xff;
         let meta = temp >> 8;
 
         let extraLen = this.readLShort();
-        let nbt = null;
         if (extraLen == 0xffff) {
             this.readByte(); // ? nbt version
             // As i cannot pass offset by reference, i keep it using this binary stream directly
@@ -388,10 +382,8 @@ export default class PacketBinaryStream extends BinaryStream {
 
     /**
      * Serializes an item into the buffer.
-     *
-     * @param {Item | Block} itemstack
      */
-    writeItemStack(itemstack: any) {
+    writeItemStack(itemstack: Item | Block) {
         if (itemstack.name === 'minecraft:air') {
             return this.writeVarInt(0);
         }
@@ -531,11 +523,11 @@ export default class PacketBinaryStream extends BinaryStream {
     }
 
     readItemStackRequestSlotInfo() {
-        return {
+        return new ItemStackRequestSlotInfo({
             containerId: this.readByte(),
             slot: this.readByte(),
             stackNetworkId: this.readVarInt()
-        }; // TODO: class
+        });
     }
 
     readCommandOriginData() {
@@ -545,8 +537,8 @@ export default class PacketBinaryStream extends BinaryStream {
         data.requestId = this.readString();
 
         if (
-            data.type === CommandOrigin.DevConsole ||
-            data.type === CommandOrigin.Test
+            data.type === CommandOriginType.DevConsole ||
+            data.type === CommandOriginType.Test
         ) {
             data.uniqueEntityId = this.readVarLong();
         }

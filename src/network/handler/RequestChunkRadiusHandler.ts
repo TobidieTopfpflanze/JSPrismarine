@@ -1,14 +1,14 @@
 import type Player from '../../player/Player';
-import type Prismarine from '../../Prismarine';
+import type Server from '../../Server';
 import type RequestChunkRadiusPacket from '../packet/RequestChunkRadiusPacket';
-import PlayStatus from '../type/play-status';
+import PlayStatusType from '../type/PlayStatusType';
 import PacketHandler from './PacketHandler';
 
 export default class RequestChunkRadiusHandler
     implements PacketHandler<RequestChunkRadiusPacket> {
     public handle(
         packet: RequestChunkRadiusPacket,
-        server: Prismarine,
+        server: Server,
         player: Player
     ): void {
         const maxViewDistance = server.getConfig().getViewDistance();
@@ -18,6 +18,6 @@ export default class RequestChunkRadiusHandler
 
         player.getConnection().sendNetworkChunkPublisher();
 
-        player.getConnection().sendPlayStatus(PlayStatus.PlayerSpawn);
+        player.getConnection().sendPlayStatus(PlayStatusType.PlayerSpawn);
     }
 }

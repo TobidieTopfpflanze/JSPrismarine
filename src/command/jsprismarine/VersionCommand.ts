@@ -1,6 +1,6 @@
-import Player from '../../player/Player';
 import Command from '../Command';
 import Identifiers from '../../network/Identifiers';
+import Player from '../../player/Player';
 
 const packageFile = require('../../../package.json');
 
@@ -8,7 +8,7 @@ export default class VersionCommand extends Command {
     constructor() {
         super({
             id: 'jsprismarine:version',
-            description: 'Displays general server informations.',
+            description: 'Displays general server information.',
             aliases: ['about']
         });
     }

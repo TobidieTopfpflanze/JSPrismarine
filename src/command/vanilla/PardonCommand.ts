@@ -1,14 +1,15 @@
-import Player from '../../player/Player';
-import Command from '../Command';
 import CommandParameter, {
     CommandParameterType
 } from '../../network/type/CommandParameter';
+
+import Command from '../Command';
+import Player from '../../player/Player';
 
 export default class PardonCommand extends Command {
     constructor() {
         super({
             id: 'minecraft:pardon',
-            description: 'Pardon a player',
+            description: 'Pardon a player.',
             permission: 'minecraft.command.pardon'
         } as any);
 

@@ -1,19 +1,19 @@
+import CommandExecuter from '../command/CommandExecuter';
+import type Server from '../Server';
 import fs from 'fs';
 import path from 'path';
 import util from 'util';
-import type Prismarine from '../Prismarine';
-import type Player from '../player/Player';
 
 interface OpType {
     name: string;
 }
 
 export default class PermissionManager {
-    private server: Prismarine;
+    private server: Server;
     private ops: Set<string> = new Set();
     private permissions: Map<string, string> = new Map();
 
-    public constructor(server: Prismarine) {
+    public constructor(server: Server) {
         this.server = server;
     }
 
@@ -28,8 +28,10 @@ export default class PermissionManager {
 
     private async parseOps(): Promise<void> {
         try {
-            if (!fs.existsSync(path.join(process.cwd(), '/ops.json')))
+            if (!fs.existsSync(path.join(process.cwd(), '/ops.json'))) {
+                this.server.getLogger().warn(`Failed to load operators list!`);
                 fs.writeFileSync(path.join(process.cwd(), '/ops.json'), '[]');
+            }
 
             const readFile = util.promisify(fs.readFile);
             const ops: Array<OpType> = JSON.parse(
@@ -69,18 +71,16 @@ export default class PermissionManager {
         }
     }
 
-    public isOp(player: Player): boolean {
-        return !player.isPlayer() ?? this.ops.has(player.getUsername());
+    public isOp(username: string): boolean {
+        return this.ops.has(username);
     }
 
-    public can(player: Player): any {
+    public can(executer: CommandExecuter): any {
         return {
             execute: async (permission?: string) => {
-                if (!player.isPlayer()) return true; // We're the console or a plugin
-
                 if (!permission) return true;
-
-                if (this.ops.has(player.getUsername())) return true;
+                if (this.isOp(executer.getUsername())) return true;
+                if (!executer.isPlayer()) return true;
 
                 // TODO: handle permissions
             }

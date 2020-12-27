@@ -1,5 +1,6 @@
-import path from 'path';
 import ConfigBuilder from './ConfigBuilder';
+import { SeedGenerator } from '../utils/Seed';
+import path from 'path';
 import pkg from '../../package.json';
 
 export default class Config {
@@ -19,6 +20,8 @@ export default class Config {
     private enableTelemetry: boolean;
     private telemetryUrls: Array<string>;
     private packetCompressionLevel: number;
+    private updateRepo: string;
+    private updateChannel: string;
 
     constructor() {
         this.version = pkg.version;
@@ -34,7 +37,7 @@ export default class Config {
         this.worlds = this.configBuilder.get('worlds', {
             world: {
                 generator: 'overworld',
-                seed: 1234 // TODO: generate random seed
+                seed: SeedGenerator()
             }
         });
         this.maxPlayers = this.configBuilder.get('max-players', 20);
@@ -53,6 +56,15 @@ export default class Config {
         this.packetCompressionLevel = this.configBuilder.get(
             'packet-compression-level',
             7
+        );
+
+        this.updateRepo = this.configBuilder.get(
+            'update-repo',
+            'JSPrismarine/JSPrismarine'
+        );
+        this.updateChannel = this.configBuilder.get(
+            'update-channel',
+            'release'
         );
     }
 
@@ -97,5 +109,12 @@ export default class Config {
     }
     public getPacketCompressionLevel() {
         return this.packetCompressionLevel;
+    }
+
+    public getUpdateRepo() {
+        return this.updateRepo;
+    }
+    public getUpdateChannel() {
+        return this.updateChannel;
     }
 }
