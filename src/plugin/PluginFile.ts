@@ -1,6 +1,6 @@
-import PluginApiVersion from './api/PluginApiVersion';
-import Server from '../Server';
 import path from 'path';
+import Server from '../Server';
+import PluginApiVersion from './api/PluginApiVersion';
 
 export class Plugin {
     constructor(api: PluginApiVersion) {}
@@ -9,14 +9,14 @@ export class Plugin {
 }
 
 export default class PluginFile {
-    private server: Server;
-    private path: string;
-    private package;
-    private plugin: Plugin;
+    private readonly server: Server;
+    private readonly path: string;
+    private readonly package;
+    private readonly plugin: Plugin;
 
-    private name: string;
-    private displayName: string;
-    private version: string;
+    private readonly name: string;
+    private readonly displayName: string;
+    private readonly version: string;
 
     constructor(
         server: Server,
@@ -49,21 +49,21 @@ export default class PluginFile {
     }
 
     /**
-     * returns the plugin's name
+     * Returns the plugin's name
      */
     public getName() {
         return this.name;
     }
 
     /**
-     * returns the plugin's display name
+     * Returns the plugin's display name
      */
     public getDisplayName() {
         return this.displayName;
     }
 
     /**
-     * returns the plugin's version
+     * Returns the plugin's version
      */
     public getVersion() {
         return this.version;
@@ -72,6 +72,7 @@ export default class PluginFile {
     public async onEnable() {
         await this.plugin.onEnable();
     }
+
     public async onDisable() {
         await this.plugin.onDisable();
     }

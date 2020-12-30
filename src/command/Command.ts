@@ -1,10 +1,10 @@
-import CommandExecuter from './CommandExecuter';
 import CommandParameter from '../network/type/CommandParameter';
+import CommandExecuter from './CommandExecuter';
 
 interface CommandProps {
     id: string;
     description?: string;
-    aliases?: Array<string>;
+    aliases?: string[];
     flags?: number;
     permission?: string;
     parameters?: Array<Set<CommandParameter>> | Set<CommandParameter>;
@@ -13,7 +13,7 @@ interface CommandProps {
 export default class Command {
     id: string;
     description?: string;
-    aliases?: Array<string>;
+    aliases?: string[];
     flags?: number;
     permission?: string;
     parameters?: Array<Set<CommandParameter>> | Set<CommandParameter>;
@@ -39,6 +39,11 @@ export default class Command {
      */
     public execute(
         sender: CommandExecuter,
-        args: Array<string> = []
-    ): string | void | Promise<string | void> {}
+        args: Array<string | number> = []
+    ): string | void | Promise<string | void> {
+        sender
+            .getServer()
+            .getLogger()
+            .error('execute stub was called unexpectedly!');
+    }
 }

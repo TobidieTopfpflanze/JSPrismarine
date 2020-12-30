@@ -5,7 +5,7 @@ import type Server from './Server';
 import readline from 'readline';
 
 export default class Console implements CommandExecuter {
-    private server: Server;
+    private readonly server: Server;
 
     public constructor(server: Server) {
         this.server = server;
@@ -44,7 +44,7 @@ export default class Console implements CommandExecuter {
             completer: process.stdin.isTTY ? completer : undefined
         });
 
-        cli.on('line', (input: string) => {
+        cli.on('line', async (input: string) => {
             if (input.startsWith('/'))
                 return this.getServer()
                     .getCommandManager()
@@ -59,14 +59,10 @@ export default class Console implements CommandExecuter {
         server.getEventManager().on('chat', (evt: ChatEvent) => {
             if (evt.cancelled) return;
 
-            // TODO: proper channel system
             if (
-                evt.getChat().getChannel() === '*.everyone' ??
-                (evt.getChat().getChannel() === '*.ops' &&
-                    this.server
-                        .getPermissionManager()
-                        .isOp(this.getUsername())) ??
-                evt.getChat().getChannel() === `*.player.${this.getUsername()}`
+                evt.getChat().getChannel() === '*.everyone' ||
+                evt.getChat().getChannel() === '*.ops' ||
+                evt.getChat().getChannel() === `*.console`
             )
                 this.sendMessage(evt.getChat().getMessage());
         });
@@ -81,7 +77,7 @@ export default class Console implements CommandExecuter {
     }
 
     public sendMessage(message: string): void {
-        this.getServer().getLogger().info(message);
+        this.getServer().getLogger().info(message, 'Console');
     }
 
     public getServer(): Server {
@@ -90,5 +86,9 @@ export default class Console implements CommandExecuter {
 
     public isPlayer(): boolean {
         return false;
+    }
+
+    public isOp(): boolean {
+        return true;
     }
 }

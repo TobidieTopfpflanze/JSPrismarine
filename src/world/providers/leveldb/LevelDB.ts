@@ -1,34 +1,30 @@
 import BinaryStream from '@jsprismarine/jsbinaryutils';
-import Chunk from '../chunk/Chunk';
-import EmptySubChunk from '../chunk/EmptySubChunk';
-import Level from 'level';
-import type Server from '../../Server';
-import Provider from '../Provider';
-import SubChunk from '../chunk/SubChunk';
-import Vector3 from '../../math/Vector3';
+import Chunk from '../../chunk/Chunk';
+import EmptySubChunk from '../../chunk/EmptySubChunk';
+import Level from '@beenotung/level-ts';
+import type Server from '../../../Server';
+import Provider from '../../Provider';
+import SubChunk from '../../chunk/SubChunk';
+import Vector3 from '../../../math/Vector3';
 import path from 'path';
-
-interface readChunk {
-    x: number;
-    z: number;
-    generator: any;
-    seed: number;
-    server: Server;
-}
 
 const Tags = {
     Version: 'v',
-    SubChunkPrefix: '\x2f'
+    SubChunkPrefix: '\u002F'
 };
 
 export default class LevelDB extends Provider {
-    private server: Server;
-    private db: Level;
+    private readonly server: Server;
+    private readonly db: Level;
 
     constructor(levelPath: string, server: Server) {
         super(levelPath);
         this.db = new Level(path.join(levelPath, 'db'));
         this.server = server;
+    }
+
+    public async close() {
+        // TODO: close the DB
     }
 
     /**
@@ -41,7 +37,13 @@ export default class LevelDB extends Provider {
         generator,
         seed,
         server
-    }: readChunk): Promise<Chunk | null> {
+    }: {
+        x: number;
+        z: number;
+        generator: any;
+        seed: number;
+        server: Server;
+    }): Promise<Chunk | null> {
         return new Promise(async (resolve, reject) => {
             const index = LevelDB.chunkIndex(x, z);
             const subChunks: Map<number, SubChunk> = new Map();
@@ -62,11 +64,11 @@ export default class LevelDB extends Provider {
                                 Buffer.from(subChunkBuffer)
                             );
                             const subChunkVersion = stream.readByte();
-                            if (subChunkVersion == 0) {
-                                let blocks = stream.read(4096);
-                                let blockData = stream.read(2048);
+                            if (subChunkVersion === 0) {
+                                const blocks = stream.read(4096);
+                                const blockData = stream.read(2048);
 
-                                let subChunk = new SubChunk();
+                                const subChunk = new SubChunk();
                                 subChunk.ids = blocks;
                                 subChunk.metadata = blockData;
 
@@ -80,13 +82,14 @@ export default class LevelDB extends Provider {
                             // NO-OP
                         }
                     }
-                    // await this.db.get(index + '\x2d');
+
+                    // Await this.db.get(index + '\x2d');
                     return resolve(new Chunk(x, z, subChunks));
                 }
-            } catch (err) {
-                if (!err.notFound) {
+            } catch (error) {
+                if (!error.notFound) {
                     // Something else went wrong
-                    return reject(err);
+                    return reject(error);
                 }
 
                 // Chunk doesn't exist
@@ -100,22 +103,23 @@ export default class LevelDB extends Provider {
                     });
 
                     // Put all sub chunks
-                    for (let [y, subChunk] of chunk.getSubChunks()) {
+                    for (const [y, subChunk] of chunk.getSubChunks()) {
                         if (subChunk instanceof EmptySubChunk) continue;
-                        let key = index + Tags.SubChunkPrefix + y;
-                        let buffer = Buffer.from([
+                        const key = index + Tags.SubChunkPrefix + y;
+                        const buffer = Buffer.from([
                             0,
                             ...subChunk.ids,
                             ...subChunk.metadata
                         ]);
                         await this.db.put(key, buffer);
                     }
+
                     // Put data 2D
-                    let data = Buffer.from([
+                    const data = Buffer.from([
                         ...chunk.getHeightMap(),
                         chunk.getBiomes()
                     ]);
-                    await this.db.put(index + '\x2d', data);
+                    await this.db.put(index + '\u002D', data);
                     return resolve(chunk);
                 })();
             }
@@ -132,10 +136,10 @@ export default class LevelDB extends Provider {
                 await this.db.put(index + Tags.Version, 7);
 
                 // Put all sub chunks
-                for (let [y, subChunk] of chunk.getSubChunks()) {
+                for (const [y, subChunk] of chunk.getSubChunks()) {
                     if (subChunk instanceof EmptySubChunk) continue;
-                    let key = index + Tags.SubChunkPrefix + y;
-                    let buffer = Buffer.from([
+                    const key = index + Tags.SubChunkPrefix + y;
+                    const buffer = Buffer.from([
                         0,
                         ...subChunk.ids,
                         ...subChunk.metadata
@@ -144,14 +148,14 @@ export default class LevelDB extends Provider {
                 }
 
                 // Put data 2D
-                let data = Buffer.from([
+                const data = Buffer.from([
                     ...chunk.getHeightMap(),
                     chunk.getBiomes()
                 ]);
-                await this.db.put(index + '\x2d', data);
+                await this.db.put(index + '\u002D', data);
                 return resolve();
-            } catch (err) {
-                return reject(err);
+            } catch (error) {
+                return reject(error);
             }
         });
     }
@@ -162,7 +166,7 @@ export default class LevelDB extends Provider {
      * in the db.
      */
     static chunkIndex(chunkX: number, chunkZ: number): string {
-        let stream = new BinaryStream();
+        const stream = new BinaryStream();
         stream.writeLInt(chunkX);
         stream.writeLInt(chunkZ);
         return stream.getBuffer().toString('hex');

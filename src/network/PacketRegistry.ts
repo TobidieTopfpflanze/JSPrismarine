@@ -1,81 +1,78 @@
-import ActorFallHandler from './handler/ActorFallHandler';
+import type Server from '../Server';
+import LoggerBuilder from '../utils/Logger';
+import AnimateHandler from './handler/AnimateHandler';
+import ClientCacheStatusHandler from './handler/ClientCacheStatusHandler';
+import CommandRequestHandler from './handler/CommandRequestHandler';
+import ContainerCloseHandler from './handler/ContainerCloseHandler';
+import InteractHandler from './handler/InteractHandler';
+import InventoryTransactionHandler from './handler/InventoryTransactionHandler';
+import LevelSoundEventHandler from './handler/LevelSoundEventHandler';
+import LoginHandler from './handler/LoginHandler';
+import MobEquipmentHandler from './handler/MobEquipmentHandler';
+import MovePlayerHandler from './handler/MovePlayerHandler';
+import PacketViolationWarningHandler from './handler/PacketViolationWarningHandler';
+import PlayerActionHandler from './handler/PlayerActionHandler';
+import RequestChunkRadiusHandler from './handler/RequestChunkRadiusHandler';
+import ResourcePackResponseHandler from './handler/ResourcePackResponseHandler';
+import SetLocalPlayerAsInitializedHandler from './handler/SetLocalPlayerAsInitializedHandler';
+import TextHandler from './handler/TextHandler';
+import TickSyncHandler from './handler/TickSyncHandler';
+import Identifiers from './Identifiers';
 import ActorFallPacket from './packet/ActorFallPacket';
 import AddActorPacket from './packet/AddActorPacket';
 import AddPlayerPacket from './packet/AddPlayerPacket';
 import AdventureSettingsHandler from './handler/AdventureSettingsHandler';
 import AdventureSettingsPacket from './packet/AdventureSettingsPacket';
-import AnimateHandler from './handler/AnimateHandler';
 import AnimatePacket from './packet/AnimatePacket';
 import AvailableActorIdentifiersPacket from './packet/AvailableActorIdentifiersPacket';
 import AvailableCommandsPacket from './packet/AvailableCommandsPacket';
 import BiomeDefinitionListPacket from './packet/BiomeDefinitionListPacket';
 import ChunkRadiusUpdatedPacket from './packet/ChunkRadiusUpdatedPacket';
-import ClientCacheStatusHandler from './handler/ClientCacheStatusHandler';
 import ClientCacheStatusPacket from './packet/ClientCacheStatusPacket';
-import CommandRequestHandler from './handler/CommandRequestHandler';
 import CommandRequestPacket from './packet/CommandRequestPacket';
-import ContainerCloseHandler from './handler/ContainerCloseHandler';
 import ContainerClosePacket from './packet/ContainerClosePacket';
 import ContainerOpenPacket from './packet/ContainerOpenPacket';
 import CreativeContentPacket from './packet/CreativeContentPacket';
 import DisconnectPacket from './packet/DisconnectPacket';
-import EmoteListHandler from './handler/EmoteListHandler';
 import EmoteListPacket from './packet/EmoteListPacket';
-import Identifiers from './Identifiers';
-import InteractHandler from './handler/InteractHandler';
 import InteractPacket from './packet/InteractPacket';
 import InventoryContentPacket from './packet/InventoryContentPacket';
-import InventoryTransactionHandler from './handler/InventoryTransactionHandler';
 import InventoryTransactionPacket from './packet/InventoryTransactionPacket';
-import ItemStackRequestHandler from './handler/ItemStackRequestHandler';
 import ItemStackRequestPacket from './packet/ItemStackRequestPacket';
 import ItemStackResponsePacket from './packet/ItemStackResponsePacket';
 import LevelChunkPacket from './packet/LevelChunkPacket';
-import LevelSoundEventHandler from './handler/LevelSoundEventHandler';
 import LevelSoundEventPacket from './packet/LevelSoundEventPacket';
-import LoggerBuilder from '../utils/Logger';
-import LoginHandler from './handler/LoginHandler';
 import LoginPacket from './packet/LoginPacket';
-import MobEquipmentHandler from './handler/MobEquipmentHandler';
 import MobEquipmentPacket from './packet/MobEquipmentPacket';
-import MovePlayerHandler from './handler/MovePlayerHandler';
 import MovePlayerPacket from './packet/MovePlayerPacket';
 import NetworkChunkPublisherUpdatePacket from './packet/NetworkChunkPublisherUpdatePacket';
-import PacketViolationWarningHandler from './handler/PacketViolationWarningHandler';
 import PacketViolationWarningPacket from './packet/PacketViolationWarningPacket';
-import PlayStatusPacket from './packet/PlayStatusPacket';
-import PlayerActionHandler from './handler/PlayerActionHandler';
 import PlayerActionPacket from './packet/PlayerActionPacket';
 import PlayerListPacket from './packet/PlayerListPacket';
 import PlayerSkinPacket from './packet/PlayerSkinPacket';
+import PlayStatusPacket from './packet/PlayStatusPacket';
 import RemoveActorPacket from './packet/RemoveActorPacket';
-import RequestChunkRadiusHandler from './handler/RequestChunkRadiusHandler';
 import RequestChunkRadiusPacket from './packet/RequestChunkRadiusPacket';
-import ResourcePackResponseHandler from './handler/ResourcePackResponseHandler';
 import ResourcePackResponsePacket from './packet/ResourcePackResponsePacket';
-import ResourcePackStackPacket from './packet/ResourcePackStackPacket';
 import ResourcePacksInfoPacket from './packet/ResourcePacksInfoPacket';
-import type Server from '../Server';
+import ResourcePackStackPacket from './packet/ResourcePackStackPacket';
 import ServerSettingsRequestPacket from './packet/ServerSettingsRequestPacket';
 import SetActorDataPacket from './packet/SetActorDataPacket';
 import SetGamemodePacket from './packet/SetGamemodePacket';
-import SetLocalPlayerAsInitializedHandler from './handler/SetLocalPlayerAsInitializedHandler';
 import SetLocalPlayerAsInitializedPacket from './packet/SetLocalPlayerAsInitializedPacket';
 import SetTimePacket from './packet/SetTimePacket';
 import SetTitlePacket from './packet/SetTitlePacket';
 import StartGamePacket from './packet/StartGamePacket';
-import TextHandler from './handler/TextHandler';
 import TextPacket from './packet/TextPacket';
-import TickSyncHandler from './handler/TickSyncHandler';
 import TickSyncPacket from './packet/TickSyncPacket';
 import UpdateAttributesPacket from './packet/UpdateAttributesPacket';
 import UpdateBlockPacket from './packet/UpdateBlockPacket';
 import WorldEventPacket from './packet/WorldEventPacket';
 
 export default class PacketRegistry {
-    private logger: LoggerBuilder;
-    private packets: Map<number, any> = new Map();
-    private handlers: Map<number, any> = new Map();
+    private readonly logger: LoggerBuilder;
+    private readonly packets: Map<number, any> = new Map();
+    private readonly handlers: Map<number, any> = new Map();
 
     public constructor(server: Server) {
         this.logger = server.getLogger();
@@ -85,13 +82,17 @@ export default class PacketRegistry {
 
     private registerPacket(packet: any): void {
         this.packets.set(packet.NetID, packet);
-        this.logger.silly(`Packet with id §b${packet.name}§r registered`);
+        this.logger.silly(
+            `Packet with id §b${packet.name}§r registered`,
+            'PacketRegistry/registerPacket'
+        );
     }
 
     private registerHandler(id: number, handler: object): void {
         this.handlers.set(id, handler);
         this.logger.silly(
-            `Handler with id §b${handler.constructor.name}§r registered`
+            `Handler with id §b${handler.constructor.name}§r registered`,
+            'PacketRegistry/registerHandler'
         );
     }
 
@@ -151,17 +152,14 @@ export default class PacketRegistry {
         this.logger.debug(
             `Registered §b${this.packets.size}§r of §b${
                 Array.from(Object.keys(Identifiers)).length - 2
-            }§r packet(s) (took ${Date.now() - time} ms)!`
+            }§r packet(s) (took ${Date.now() - time} ms)!`,
+            'PacketRegistry/loadPackets'
         );
     }
 
     private loadHandlers(): void {
         const time = Date.now();
 
-        this.registerHandler(
-            Identifiers.ActorFallPacket,
-            new ActorFallHandler()
-        );
         this.registerHandler(
             Identifiers.AdventureSettingsPacket,
             new AdventureSettingsHandler()
@@ -179,18 +177,10 @@ export default class PacketRegistry {
             Identifiers.CommandRequestPacket,
             new CommandRequestHandler()
         );
-        this.registerHandler(
-            Identifiers.EmoteListPacket,
-            new EmoteListHandler()
-        );
         this.registerHandler(Identifiers.InteractPacket, new InteractHandler());
         this.registerHandler(
             Identifiers.InventoryTransactionPacket,
             new InventoryTransactionHandler()
-        );
-        this.registerHandler(
-            Identifiers.ItemStackRequestPacket,
-            new ItemStackRequestHandler()
         );
         this.registerHandler(
             Identifiers.LevelSoundEventPacket,
@@ -231,7 +221,8 @@ export default class PacketRegistry {
         this.logger.debug(
             `Registered §b${this.handlers.size}§r packet handler(s) (took ${
                 Date.now() - time
-            } ms)!`
+            } ms)!`,
+            'PacketRegistry/loadHandlers'
         );
     }
 
@@ -239,12 +230,9 @@ export default class PacketRegistry {
         return this.packets;
     }
 
-    public getPacketHandler(id: number): object | null {
-        if (this.handlers.has(id)) {
-            return this.handlers.get(id);
-        } else {
-            this.logger.error(`Missing handler for packet id=%d`, id);
-            return null;
-        }
+    public getPacketHandler(id: number): object {
+        if (this.handlers.has(id)) return this.handlers.get(id);
+
+        throw new Error(`Missing handler for packet 0x${id.toString(16)}`);
     }
 }

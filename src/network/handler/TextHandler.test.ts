@@ -4,16 +4,16 @@ import TextPacket from '../packet/TextPacket';
 describe('network', () => {
     describe('handler', () => {
         describe('TextHandler', () => {
-            it('handle', (done) => {
+            it('handle', async (done) => {
                 const pk = new TextPacket();
                 pk.message = 'hello world';
 
                 const handler = new TextHandler();
-                handler.handle(
+                await handler.handle(
                     pk,
                     {
                         getChatManager: () => ({
-                            send: (chat) => {
+                            send: (chat: any) => {
                                 expect(chat.getMessage()).toBe(
                                     'runner hello world'
                                 );

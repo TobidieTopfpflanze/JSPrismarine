@@ -164,8 +164,11 @@ export default class TpCommand extends Command {
         );
     }
 
-    public execute(sender: CommandExecuter, args: Array<string>) {
-        if (args.length < 1) {
+    public async execute(
+        sender: CommandExecuter,
+        args: Array<string | number>
+    ) {
+        if (args.length === 0) {
             sender.sendMessage('§cYou have to specify <player> x y z.');
             return;
         }
@@ -181,6 +184,7 @@ export default class TpCommand extends Command {
                         );
                         return;
                     }
+
                     const target = player;
                     player = sender as Player;
 
@@ -197,6 +201,7 @@ export default class TpCommand extends Command {
                         );
                         return;
                     }
+
                     player = sender as Player;
 
                     player.setY(
@@ -206,6 +211,7 @@ export default class TpCommand extends Command {
                     sender.sendMessage(`§c${args[0]} is not online!`);
                     return;
                 }
+
                 break;
             case 2:
                 if (
@@ -221,6 +227,7 @@ export default class TpCommand extends Command {
                         );
                         return;
                     }
+
                     player = sender as Player;
 
                     player.setX(
@@ -236,7 +243,9 @@ export default class TpCommand extends Command {
                 ) {
                     player.setY(this.getCoord(player.getY(), args[1]));
                 } else if (player) {
-                    const target = sender.getServer().getPlayerByName(args[1]);
+                    const target = sender
+                        .getServer()
+                        .getPlayerByName(`${args[1]}`);
                     if (!target) {
                         sender.sendMessage(`§c${args[0]} is not online!`);
                         return;
@@ -254,6 +263,7 @@ export default class TpCommand extends Command {
                     );
                     return;
                 }
+
                 break;
             case 3:
                 if (
@@ -272,6 +282,7 @@ export default class TpCommand extends Command {
                         );
                         return;
                     }
+
                     player = sender as Player;
 
                     player.setX(
@@ -301,6 +312,7 @@ export default class TpCommand extends Command {
                     );
                     return;
                 }
+
                 break;
             case 4:
                 if (
@@ -324,6 +336,7 @@ export default class TpCommand extends Command {
                     sender.sendMessage('§cYou have to specify <player> x y z.');
                     return;
                 }
+
                 break;
             default:
                 sender.sendMessage('$cYou passed to many arguments!');
@@ -335,7 +348,9 @@ export default class TpCommand extends Command {
             return;
         }
 
-        player.getConnection().broadcastMove(player, MovementType.Teleport);
+        await player
+            .getConnection()
+            .broadcastMove(player, MovementType.Teleport);
         return `Teleported ${player.getUsername()} to ${player.getX()} ${player.getY()} ${player.getZ()}`;
     }
 
@@ -350,7 +365,9 @@ export default class TpCommand extends Command {
             Number(newCord.slice(1))
         ) {
             return oldCord + Number(newCord.slice(1));
-        } else if (typeof newCord === 'number') {
+        }
+
+        if (typeof newCord === 'number') {
             return newCord;
         }
     }

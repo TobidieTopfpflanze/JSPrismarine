@@ -1,8 +1,8 @@
 import BinaryStream from '@jsprismarine/jsbinaryutils';
+import git from 'git-rev-sync';
 import type InetAddress from '../network/raknet/utils/InetAddress';
 import PluginFile from '../plugin/PluginFile';
 import Server from '../Server';
-import git from 'git-rev-sync';
 
 export enum QueryType {
     Handshake = 0,
@@ -10,7 +10,7 @@ export enum QueryType {
 }
 
 export default class QueryManager {
-    private server: Server;
+    private readonly server: Server;
     public git_rev: string;
 
     constructor(server: Server) {
@@ -24,13 +24,13 @@ export default class QueryManager {
     }
 
     public async onRaw(buffer: Buffer, rinfo: InetAddress): Promise<Buffer> {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             const stream = new BinaryStream(buffer);
             const magic = stream.readShort();
             const type: QueryType = stream.readByte();
             const sessionId = stream.readInt() & 0x0f0f0f0f;
 
-            if (magic !== 65277) return reject();
+            if (magic !== 65277) return reject(new Error('Invalid magic'));
 
             switch (type) {
                 case QueryType.Handshake: {
@@ -39,7 +39,7 @@ export default class QueryManager {
                     res.writeByte(9);
                     res.writeInt(sessionId);
                     res.append(Buffer.from(`9513307\0`, 'binary'));
-                    this.server
+                    await this.server
                         .getRaknet()
                         .sendBuffer(
                             res.getBuffer(),
@@ -48,10 +48,11 @@ export default class QueryManager {
                         );
                     return resolve(res.getBuffer());
                 }
+
                 case QueryType.Stats: {
                     const res = new BinaryStream();
                     res.writeByte(0);
-                    // padding
+                    // Padding
                     res.writeByte(115);
                     res.writeByte(112);
                     res.writeByte(108);
@@ -113,7 +114,7 @@ export default class QueryManager {
                         )
                     );
 
-                    // padding
+                    // Padding
                     res.writeByte(1);
                     res.writeByte(112);
                     res.writeByte(108);
@@ -136,7 +137,7 @@ export default class QueryManager {
                             'binary'
                         )
                     );
-                    this.server
+                    await this.server
                         .getRaknet()
                         .sendBuffer(
                             res.getBuffer(),
@@ -144,8 +145,11 @@ export default class QueryManager {
                             rinfo.getPort()
                         );
 
-                    resolve(res.getBuffer());
+                    return resolve(res.getBuffer());
                 }
+
+                default:
+                    throw new Error('Invalid QueryType');
             }
         });
     }
