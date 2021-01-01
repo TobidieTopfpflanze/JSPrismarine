@@ -9,6 +9,7 @@ export default class StartGamePacket extends DataPacket {
     public entityId!: bigint;
     public runtimeEntityId!: bigint;
     public gamemode!: number;
+    public defaultGamemode!: number;
 
     public playerPos!: Vector3;
     public pith!: number;
@@ -30,15 +31,11 @@ export default class StartGamePacket extends DataPacket {
 
         this.writeVarInt(this.gamemode);
 
-        // Vector 3
-        this.writeLFloat(this.playerPos.getX());
-        this.writeLFloat(this.playerPos.getY());
-        this.writeLFloat(this.playerPos.getZ());
-
+        this.writeVector3(this.playerPos);
         this.writeLFloat(this.pith);
         this.writeLFloat(this.yaw);
 
-        this.writeVarInt(this.seed || 0);
+        this.writeVarInt(0); // Seed
 
         this.writeLShort(0x00); // Default spawn biome type
         this.writeString('plains'); // User defined biome name
@@ -46,7 +43,7 @@ export default class StartGamePacket extends DataPacket {
         this.writeVarInt(0); // Dimension
 
         this.writeVarInt(1); // Generator
-        this.writeVarInt(0); // Gamemode
+        this.writeVarInt(this.defaultGamemode ?? 0); // Default Gamemode
         this.writeVarInt(0); // Difficulty
 
         // world spawn vector 3
@@ -54,7 +51,7 @@ export default class StartGamePacket extends DataPacket {
         this.writeUnsignedVarInt(this.worldSpawnPos.getY());
         this.writeVarInt(this.worldSpawnPos.getZ());
 
-        this.writeBool(true); // Achievement disabled
+        this.writeBool(false); // Achievement disabled
 
         this.writeVarInt(0); // Day cycle / time
         this.writeVarInt(0); // Edu edition offer

@@ -68,6 +68,12 @@ import TickSyncPacket from './packet/TickSyncPacket';
 import UpdateAttributesPacket from './packet/UpdateAttributesPacket';
 import UpdateBlockPacket from './packet/UpdateBlockPacket';
 import WorldEventPacket from './packet/WorldEventPacket';
+import SetPlayerGameTypePacket from './packet/SetPlayerGameTypePacket';
+import SetPlayerGameTypeHandler from './handler/SetPlayerGameTypeHandler';
+import SetDefaultGameTypeHandler from './handler/SetDefaultGameTypeHandler';
+import SetDefaultGameTypePacket from './packet/SetDefaultGameTypePacket';
+import TransferPacket from './packet/TransferPacket';
+import ChangeDimensionPacket from './packet/ChangeDimensionPacket';
 
 export default class PacketRegistry {
     private readonly logger: LoggerBuilder;
@@ -107,6 +113,7 @@ export default class PacketRegistry {
         this.registerPacket(AvailableActorIdentifiersPacket);
         this.registerPacket(AvailableCommandsPacket);
         this.registerPacket(BiomeDefinitionListPacket);
+        this.registerPacket(ChangeDimensionPacket);
         this.registerPacket(ChunkRadiusUpdatedPacket);
         this.registerPacket(ClientCacheStatusPacket);
         this.registerPacket(CommandRequestPacket);
@@ -138,13 +145,16 @@ export default class PacketRegistry {
         this.registerPacket(ResourcePackStackPacket);
         this.registerPacket(ServerSettingsRequestPacket);
         this.registerPacket(SetActorDataPacket);
+        this.registerPacket(SetDefaultGameTypePacket);
         this.registerPacket(SetGamemodePacket);
         this.registerPacket(SetLocalPlayerAsInitializedPacket);
+        this.registerPacket(SetPlayerGameTypePacket);
         this.registerPacket(SetTimePacket);
         this.registerPacket(SetTitlePacket);
         this.registerPacket(StartGamePacket);
         this.registerPacket(TextPacket);
         this.registerPacket(TickSyncPacket);
+        this.registerPacket(TransferPacket);
         this.registerPacket(UpdateAttributesPacket);
         this.registerPacket(UpdateBlockPacket);
         this.registerPacket(WorldEventPacket);
@@ -212,8 +222,16 @@ export default class PacketRegistry {
             new ResourcePackResponseHandler()
         );
         this.registerHandler(
+            Identifiers.SetDefaultGameTypePacket,
+            new SetDefaultGameTypeHandler()
+        );
+        this.registerHandler(
             Identifiers.SetLocalPlayerAsInitializedPacket,
             new SetLocalPlayerAsInitializedHandler()
+        );
+        this.registerHandler(
+            Identifiers.SetPlayerGameTypePacket,
+            new SetPlayerGameTypeHandler()
         );
         this.registerHandler(Identifiers.TextPacket, new TextHandler());
         this.registerHandler(Identifiers.TickSyncPacket, new TickSyncHandler());

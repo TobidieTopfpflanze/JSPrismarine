@@ -1,7 +1,10 @@
 import CommandExecuter from '../command/CommandExecuter';
 import Human from '../entity/Human';
 import ChatEvent from '../events/chat/ChatEvent';
+import PlayerSetGamemodeEvent from '../events/player/PlayerSetGamemodeEvent';
 import PlayerToggleFlightEvent from '../events/player/PlayerToggleFlightEvent';
+import PlayerToggleSprintEvent from '../events/player/PlayerToggleSprintEvent';
+import ContainerEntry from '../inventory/ContainerEntry';
 import WindowManager from '../inventory/WindowManager';
 import Connection from '../network/raknet/Connection';
 import InetAddress from '../network/raknet/utils/InetAddress';
@@ -88,6 +91,18 @@ export default class Player extends Human implements CommandExecuter {
         this.setZ(playerData.position.z);
         this.pitch = playerData.position.pitch;
         this.yaw = playerData.position.yaw;
+
+        playerData?.inventory?.forEach((item) =>
+            this.getInventory().setItem(
+                item.position,
+                new ContainerEntry({
+                    item:
+                        this.server.getItemManager().getItem(item.id) ||
+                        this.server.getBlockManager().getBlock(item.id),
+                    count: item.count
+                })
+            )
+        );
     }
 
     public async onDisable() {
@@ -131,7 +146,11 @@ export default class Player extends Human implements CommandExecuter {
     }
 
     public async setGamemode(mode: number): Promise<void> {
-        this.gamemode = mode;
+        const event = new PlayerSetGamemodeEvent(this, mode);
+        this.server.getEventManager().post(['playerSetGamemodeEvent', event]);
+        if (event.cancelled) return;
+
+        this.gamemode = event.getGamemode();
         await this.playerConnection.sendGamemode(this.gamemode);
 
         if (
@@ -145,10 +164,6 @@ export default class Player extends Human implements CommandExecuter {
         }
 
         await this.sendSettings();
-    }
-
-    public async setTime(tick: number): Promise<void> {
-        await this.getConnection().sendTime(tick);
     }
 
     public getServer(): Server {
@@ -193,22 +208,28 @@ export default class Player extends Human implements CommandExecuter {
     public isSprinting() {
         return this.sprinting;
     }
-    public async setSprinting(val: boolean) {
-        this.sprinting = val;
+    public async setSprinting(sprinting: boolean) {
+        if (sprinting === this.isSprinting()) return;
+
+        const event = new PlayerToggleSprintEvent(this, sprinting);
+        this.server.getEventManager().post(['playerToggleSprint', event]);
+        if (event.cancelled) return;
+
+        this.sprinting = event.getIsSprinting();
         await this.sendSettings();
     }
 
     public isFlying() {
         return this.flying;
     }
-    public async setFlying(val: boolean) {
+    public async setFlying(flying: boolean) {
+        if (flying === this.isFlying()) return;
         if (!this.getAllowFlight()) {
             this.flying = false;
             return;
         }
 
-        // Emit move event
-        const event = new PlayerToggleFlightEvent(this, val);
+        const event = new PlayerToggleFlightEvent(this, flying);
         this.server.getEventManager().post(['playerToggleFlight', event]);
         if (event.cancelled) return;
 

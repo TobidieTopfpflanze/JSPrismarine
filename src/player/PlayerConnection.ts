@@ -1,5 +1,6 @@
 import Block from '../block/Block';
 import { Attribute } from '../entity/attribute';
+import ContainerEntry from '../inventory/ContainerEntry';
 import { WindowIds } from '../inventory/WindowManager';
 import Item from '../item/Item';
 import AddPlayerPacket from '../network/packet/AddPlayerPacket';
@@ -193,18 +194,16 @@ export default class PlayerConnection {
                     !this.loadingChunks.has(hash)
                 ) {
                     this.loadingChunks.add(hash);
-                    this.requestChunk(chunk[0], chunk[1]);
+                    await this.requestChunk(chunk[0], chunk[1]);
                 } else {
-                    void this.player
+                    const loadedChunk = await this.player
                         .getWorld()
-                        .getChunk(chunk[0], chunk[1])
-                        .then(async (loadedChunk) =>
-                            this.sendChunk(loadedChunk)
-                        );
+                        .getChunk(chunk[0], chunk[1]);
+                    await this.sendChunk(loadedChunk);
                 }
             } else {
                 this.loadingChunks.add(hash);
-                this.requestChunk(chunk[0], chunk[1]);
+                await this.requestChunk(chunk[0], chunk[1]);
             }
         }
 
@@ -238,11 +237,9 @@ export default class PlayerConnection {
         }
     }
 
-    public requestChunk(x: number, z: number) {
-        void this.player
-            .getWorld()
-            .getChunk(x, z)
-            .then((chunk) => this.chunkSendQueue.add(chunk));
+    public async requestChunk(x: number, z: number) {
+        const chunk = await this.player.getWorld().getChunk(x, z);
+        this.chunkSendQueue.add(chunk);
     }
 
     public async sendInventory() {
@@ -250,6 +247,7 @@ export default class PlayerConnection {
         pk.items = this.player.getInventory().getItems(true);
         pk.windowId = WindowIds.INVENTORY; // Inventory window
         await this.sendDataPacket(pk);
+        await this.sendHandItem(this.player.getInventory().getItemInHand());
 
         /* TODO: not working..
         pk = new InventoryContentPacket();
@@ -261,8 +259,6 @@ export default class PlayerConnection {
         // TODO: documentate about
         0x7c (ui content)
         0x77 (off hand)
-
-        this.sendHandItem(this.player.getInventory().getItemInHand());
         */
     }
 
@@ -300,7 +296,7 @@ export default class PlayerConnection {
     /**
      * Sets the item in the player hand.
      */
-    public async sendHandItem(item: Item | Block) {
+    public async sendHandItem(item: ContainerEntry) {
         const pk = new MobEquipmentPacket();
         pk.runtimeEntityId = this.player.runtimeId;
         pk.item = item;
