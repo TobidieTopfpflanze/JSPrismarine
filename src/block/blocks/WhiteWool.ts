@@ -1,7 +1,7 @@
-import Glass from './Glass';
 import { BlockIdsType } from '../BlockIdsType';
+import Solid from '../Solid';
 
-export enum StainedGlassType {
+export enum WoolType {
     White = 0,
     Orange = 1,
     Magenta = 2,
@@ -9,7 +9,6 @@ export enum StainedGlassType {
     Yellow = 4,
     Lime = 5,
     Pink = 6,
-    Gray = 7,
     LightGray = 8,
     Cyan = 9,
     Purple = 10,
@@ -20,12 +19,16 @@ export enum StainedGlassType {
     Black = 15
 }
 
-export default class StainedGlass extends Glass {
+export default class WhiteWool extends Solid {
     constructor(
-        name = 'minecraft:stained_glass',
-        type: StainedGlassType = StainedGlassType.White
+        name = 'minecraft:white_wool',
+        type: WoolType = WoolType.White
     ) {
-        super(name, BlockIdsType.StainedGlass);
+        super({
+            name,
+            id: BlockIdsType.Wool,
+            hardness: 0.2
+        });
         this.meta = type;
     }
 }

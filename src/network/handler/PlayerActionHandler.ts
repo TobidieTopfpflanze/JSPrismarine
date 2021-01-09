@@ -25,12 +25,14 @@ export default class PlayerActionHandler
                     packet.z % 16
                 );
                 const block = server.getBlockManager().getBlockById(blockId);
-                if (!block)
-                    return server
+                if (!block) {
+                    server
                         .getLogger()
                         .warn(
                             `Block at ${packet.x} ${packet.y} ${packet.z} is undefined!`
                         );
+                    return;
+                }
 
                 const breakTime = Math.ceil(
                     block.getBreakTime(null, server) * 20
@@ -118,8 +120,9 @@ export default class PlayerActionHandler
                 break;
             }
 
-            case PlayerActionType.Jump:
+            case PlayerActionType.Jump: {
                 break;
+            }
 
             case PlayerActionType.StartSprint: {
                 await player.setSprinting(true);
@@ -138,6 +141,11 @@ export default class PlayerActionHandler
 
             case PlayerActionType.StopSneak: {
                 await player.setSneaking(false);
+                break;
+            }
+
+            case PlayerActionType.CreativeDestroyBlock: {
+                // Handled in InventoryTransactionHandler
                 break;
             }
 

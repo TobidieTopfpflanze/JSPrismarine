@@ -1,6 +1,6 @@
+import type Server from '../Server';
 import fs from 'fs';
 import path from 'path';
-import type Server from '../Server';
 
 export default class GeneratorManager {
     private readonly generators: Map<string, any> = new Map();
@@ -8,7 +8,11 @@ export default class GeneratorManager {
     public constructor(server: Server) {
         const generators = fs.readdirSync(path.join(__dirname, '/generators'));
         generators.forEach((generator) => {
-            if (generator.includes('.test.') || generator.includes('.d.ts'))
+            if (
+                generator.includes('.test.') ||
+                generator.includes('.d.ts') ||
+                generator.includes('.map')
+            )
                 return;
             this.registerClassGenerator(generator.split('.')[0], server);
         });

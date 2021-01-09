@@ -6,8 +6,10 @@ import PlayerToggleFlightEvent from '../events/player/PlayerToggleFlightEvent';
 import PlayerToggleSprintEvent from '../events/player/PlayerToggleSprintEvent';
 import ContainerEntry from '../inventory/ContainerEntry';
 import WindowManager from '../inventory/WindowManager';
+import Vector3 from '../math/Vector3';
 import Connection from '../network/raknet/Connection';
 import InetAddress from '../network/raknet/utils/InetAddress';
+import MovementType from '../network/type/MovementType';
 import Server from '../Server';
 import Device from '../utils/Device';
 import Skin from '../utils/skin/Skin';
@@ -92,17 +94,29 @@ export default class Player extends Human implements CommandExecuter {
         this.pitch = playerData.position.pitch;
         this.yaw = playerData.position.yaw;
 
-        playerData?.inventory?.forEach((item) =>
+        playerData.inventory.forEach((item) => {
+            const entry =
+                this.server.getItemManager().getItem(item.id) ||
+                this.server.getBlockManager().getBlock(item.id);
+
+            if (!entry) {
+                this.getServer()
+                    .getLogger()
+                    .debug(
+                        `Item/block with id ${item.id} is invalid`,
+                        'Player/onEnable'
+                    );
+                return;
+            }
+
             this.getInventory().setItem(
                 item.position,
                 new ContainerEntry({
-                    item:
-                        this.server.getItemManager().getItem(item.id) ||
-                        this.server.getBlockManager().getBlock(item.id),
+                    item: entry,
                     count: item.count
                 })
-            )
-        );
+            );
+        });
     }
 
     public async onDisable() {
@@ -126,6 +140,7 @@ export default class Player extends Human implements CommandExecuter {
     public async sendSettings(): Promise<void> {
         await Promise.all(
             this.getServer()
+                .getPlayerManager()
                 .getOnlinePlayers()
                 .map(async (target) => {
                     await target.getConnection().sendSettings(this);
@@ -137,6 +152,7 @@ export default class Player extends Human implements CommandExecuter {
     // TODO: move to world
     public getPlayersInChunk(): Player[] {
         return this.server
+            .getPlayerManager()
             .getOnlinePlayers()
             .filter((player) => player.currentChunk === this.currentChunk);
     }
@@ -147,7 +163,7 @@ export default class Player extends Human implements CommandExecuter {
 
     public async setGamemode(mode: number): Promise<void> {
         const event = new PlayerSetGamemodeEvent(this, mode);
-        this.server.getEventManager().post(['playerSetGamemodeEvent', event]);
+        this.server.getEventManager().post(['playerSetGamemode', event]);
         if (event.cancelled) return;
 
         this.gamemode = event.getGamemode();
@@ -187,7 +203,15 @@ export default class Player extends Human implements CommandExecuter {
     }
 
     public getUUID(): string {
-        return this.uuid ?? '';
+        if (!this.uuid) throw new Error('uuid is missing!');
+
+        return this.uuid;
+    }
+
+    public getXUID(): string {
+        if (!this.xuid) throw new Error('xuid is missing!');
+
+        return this.xuid;
     }
 
     public getWindows(): WindowManager {
@@ -251,5 +275,15 @@ export default class Player extends Human implements CommandExecuter {
     public async setOnGround(val: boolean) {
         this.onGround = val;
         await this.sendSettings();
+    }
+
+    public async setPosition(
+        position: Vector3,
+        type: MovementType = MovementType.Normal
+    ) {
+        this.setX(position.getX());
+        this.setY(position.getY());
+        this.setZ(position.getZ());
+        await this.getConnection().broadcastMove(this, type);
     }
 }

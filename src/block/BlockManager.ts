@@ -1,14 +1,14 @@
+import BedrockData from '@jsprismarine/bedrock-data';
 import BinaryStream from '@jsprismarine/jsbinaryutils';
-import fs from 'fs';
-import path from 'path';
+import Block from './Block';
+import { BlockIdsType } from './BlockIdsType';
+import BlockRegisterEvent from '../events/block/BlockRegisterEvent';
 import { ByteOrder } from '../nbt/ByteOrder';
 import NBTReader from '../nbt/NBTReader';
 import NBTTagCompound from '../nbt/NBTTagCompound';
 import Server from '../Server';
-import Block from './Block';
-import { BlockIdsType } from './BlockIdsType';
-
-const BedrockData = require('@jsprismarine/bedrock-data'); // TODO: convert to import
+import fs from 'fs';
+import path from 'path';
 
 export default class BlockManager {
     private readonly server: Server;
@@ -28,7 +28,7 @@ export default class BlockManager {
      * OnEnable hook
      */
     public async onEnable() {
-        this.importBlocks();
+        await this.importBlocks();
         this.generateRuntimeIds();
         await this.generateBlockPalette();
     }
@@ -43,38 +43,41 @@ export default class BlockManager {
     /**
      * Get block by namespaced  id
      */
-    public getBlock(name: string): Block | null {
-        return this.blocks.get(name) || null;
+    public getBlock(name: string): Block {
+        if (!this.blocks.has(name))
+            throw new Error(`invalid block with id ${name}`);
+
+        return this.blocks.get(name);
     }
 
     /**
      * Get block by numeric id
      */
-    public getBlockById(id: number): Block | null {
-        if (!BlockIdsType[id]) return null;
+    public getBlockById(id: number): Block {
+        if (!BlockIdsType[id])
+            throw new Error(`invalid block with numeric id ${id}`);
 
-        return (
-            this.getBlocks().find((a) => a.getId() === id && a.meta === 0) ??
-            null
-        );
+        return this.getBlocks().find((a) => a.getId() === id && a.meta === 0)!;
     }
 
     /**
      * Get block by numeric id and damage value
      */
-    public getBlockByIdAndMeta(id: number, meta: number): Block | null {
-        if (!BlockIdsType[id]) return null;
-
-        return (
-            this.getBlocks().find((a) => a.id === id && a.meta === meta) || null
+    public getBlockByIdAndMeta(id: number, meta: number): Block {
+        const block = this.getBlocks().find(
+            (a) => a.id === id && a.meta === meta
         );
+
+        if (!block)
+            throw new Error(`invalid block with numeric id ${id}:${meta}`);
+        return block;
     }
 
     /**
      * Get block by runtime id
      */
-    public getBlockByRuntimeId(id: number, meta = 0): Block | null {
-        return this.getBlockByIdAndMeta(this.runtimeIds[id], meta) || null;
+    public getBlockByRuntimeId(id: number, meta = 0): Block {
+        return this.getBlockByIdAndMeta(this.runtimeIds[id], meta);
     }
 
     /**
@@ -154,7 +157,22 @@ export default class BlockManager {
     /**
      * Registers block from block class
      */
-    public registerClassBlock(block: Block) {
+    public async registerClassBlock(block: Block) {
+        try {
+            this.blocks.get(block.name);
+            this.getBlockByIdAndMeta(block.getId(), block.getMeta());
+
+            throw new Error(
+                `Block with id ${block.getName()} (${block.getId()}:${block.getMeta()}) already exists`
+            );
+        } catch (error) {
+            if (!error.message.includes('invalid block with ')) throw error;
+        }
+
+        const event = new BlockRegisterEvent(block);
+        await this.server.getEventManager().emit('blockRegister', event);
+        if (event.cancelled) return;
+
         // The runtime ID is a unique ID sent with the start-game packet
         // ours is always based on the block's index in the this.blocks map
         // starting from 0.
@@ -170,25 +188,32 @@ export default class BlockManager {
     /**
      * Loops through ./src/block/blocks and register them
      */
-    private importBlocks() {
+    private async importBlocks() {
         try {
             const time = Date.now();
             const blocks = fs.readdirSync(path.join(__dirname, 'blocks'));
-            blocks.forEach((id: string) => {
-                if (id.includes('.test.') || id.includes('.d.ts')) return; // Exclude test files
+            await Promise.all(
+                blocks.map(async (id: string) => {
+                    if (
+                        id.includes('.test.') ||
+                        id.includes('.d.ts') ||
+                        id.includes('.map')
+                    )
+                        return; // Exclude test files
 
-                const block = require(`./blocks/${id}`).default;
-                try {
-                    this.registerClassBlock(new block());
-                } catch {
-                    this.server
-                        .getLogger()
-                        .error(
-                            `${id} failed to register!`,
-                            'BlockManager/importBlocks'
-                        );
-                }
-            });
+                    const block = require(`./blocks/${id}`).default;
+                    try {
+                        await this.registerClassBlock(new block());
+                    } catch {
+                        this.server
+                            .getLogger()
+                            .error(
+                                `${id} failed to register!`,
+                                'BlockManager/importBlocks'
+                            );
+                    }
+                })
+            );
             this.server
                 .getLogger()
                 .debug(

@@ -1,4 +1,11 @@
+import IntegerArgumentType from '@jsprismarine/brigadier/dist/lib/arguments/IntegerArgumentType';
+import StringArgumentType from '@jsprismarine/brigadier/dist/lib/arguments/StringArgumentType';
 import Block from '../block/Block';
+import {
+    CommandArgumentEntity,
+    CommandArgumentFloatPosition,
+    CommandArgumentGamemode
+} from '../command/CommandArguments';
 import { Attribute } from '../entity/attribute';
 import ContainerEntry from '../inventory/ContainerEntry';
 import { WindowIds } from '../inventory/WindowManager';
@@ -31,6 +38,9 @@ import TextPacket from '../network/packet/TextPacket';
 import UpdateAttributesPacket from '../network/packet/UpdateAttributesPacket';
 import type Connection from '../network/raknet/Connection';
 import EncapsulatedPacket from '../network/raknet/protocol/EncapsulatedPacket';
+import CommandParameter, {
+    CommandParameterType
+} from '../network/type/CommandParameter';
 import CreativeContentEntry from '../network/type/CreativeContentEntry';
 import MovementType from '../network/type/MovementType';
 import PermissionType from '../network/type/PermissionType';
@@ -329,26 +339,99 @@ export default class PlayerConnection {
 
     public async sendAvailableCommands() {
         const pk = new AvailableCommandsPacket();
-        for (const command of this.server.getCommandManager().getCommands()) {
-            if (!Array.isArray(command.parameters)) {
-                (pk as any).commandData.add({
-                    ...command,
-                    name: command.id.split(':')[1],
-                    execute: undefined,
-                    id: undefined
-                });
-            } else {
-                for (let i = 0; i < command.parameters.length; i++) {
-                    (pk as any).commandData.add({
-                        ...command,
-                        name: command.id.split(':')[1],
-                        parameters: command.parameters[i],
-                        execute: undefined,
-                        id: undefined
+
+        // TODO
+        this.server
+            .getCommandManager()
+            .getCommandsList()
+            .forEach((command) => {
+                command[1].forEach((arg) => {
+                    const classCommand = Array.from(
+                        this.server.getCommandManager().getCommands().values()
+                    ).find((cmd) => cmd.id.split(':')[1] === command[0])!;
+
+                    const parameters = arg
+                        .map((parameter) => {
+                            if (parameter instanceof CommandArgumentEntity)
+                                return [
+                                    new CommandParameter({
+                                        name: 'target',
+                                        type: CommandParameterType.Target,
+                                        optional: false
+                                    })
+                                ];
+
+                            if (
+                                parameter instanceof
+                                CommandArgumentFloatPosition
+                            )
+                                return [
+                                    new CommandParameter({
+                                        name: 'x',
+                                        type: CommandParameterType.Float,
+                                        optional: false
+                                    }),
+                                    new CommandParameter({
+                                        name: 'y',
+                                        type: CommandParameterType.Float,
+                                        optional: false
+                                    }),
+                                    new CommandParameter({
+                                        name: 'z',
+                                        type: CommandParameterType.Float,
+                                        optional: false
+                                    })
+                                ];
+                            if (parameter instanceof CommandArgumentGamemode)
+                                return [
+                                    new CommandParameter({
+                                        name: 'gamemode',
+                                        type: CommandParameterType.Value,
+                                        optional: false
+                                    })
+                                ];
+                            if (parameter instanceof StringArgumentType)
+                                return [
+                                    new CommandParameter({
+                                        name: 'value',
+                                        type: CommandParameterType.String,
+                                        optional: false
+                                    })
+                                ];
+                            if (parameter instanceof IntegerArgumentType)
+                                return [
+                                    new CommandParameter({
+                                        name: 'number',
+                                        type: CommandParameterType.Int,
+                                        optional: false
+                                    })
+                                ];
+
+                            throw new Error(
+                                `Invalid parameter ${parameter.constructor.name}`
+                            );
+                        })
+                        .filter((a) => a)
+                        .flat();
+
+                    pk.commandData.add({
+                        name: command[0],
+                        description: classCommand.description,
+                        parameters: new Set<CommandParameter>(parameters as any)
                     });
-                }
-            }
-        }
+                });
+            });
+
+        this.server
+            .getCommandManager()
+            .getCommands()
+            .forEach((command) => {
+                pk.commandData.add({
+                    name: command.id.split(':')[0],
+                    description: command.description,
+                    parameters: new Set<CommandParameter>()
+                });
+            });
 
         await this.sendDataPacket(pk);
     }
@@ -383,7 +466,7 @@ export default class PlayerConnection {
         xuid = '',
         needsTranslation = false
     ) {
-        if (!message) return; // FIXME: throw error here
+        if (!message) throw new Error('A message is required');
 
         const pk = new TextPacket();
         pk.type = TextType.Raw;
@@ -445,18 +528,22 @@ export default class PlayerConnection {
             xuid: this.player.xuid,
             platformChatId: '', // TODO: read this value from Login
             buildPlatform: -1,
-            skin: this.player.skin as Skin,
+            skin: this.player.skin!,
             isTeacher: false, // TODO: figure out where to read teacher and host
             isHost: false
         });
         pk.entries.push(entry);
 
         // Add to cached player list
-        this.server.getPlayerList().set(this.player.uuid, entry);
+        this.server
+            .getPlayerManager()
+            .getPlayerList()
+            .set(this.player.uuid, entry);
 
         // Add just this entry for every players on the server
         await Promise.all(
             this.server
+                .getPlayerManager()
                 .getOnlinePlayers()
                 .map(async (player) =>
                     player.getConnection().sendDataPacket(pk)
@@ -478,10 +565,11 @@ export default class PlayerConnection {
         });
         pk.entries.push(entry);
 
-        this.server.getPlayerList().delete(this.player.uuid);
+        this.server.getPlayerManager().getPlayerList().delete(this.player.uuid);
 
         await Promise.all(
             this.server
+                .getPlayerManager()
                 .getOnlinePlayers()
                 .map(async (player) =>
                     player.getConnection().sendDataPacket(pk)
@@ -498,11 +586,13 @@ export default class PlayerConnection {
         pk.type = PlayerListAction.TYPE_ADD;
 
         // Hack to not compute every time entries
-        Array.from(this.server.getPlayerList()).forEach(([uuid, entry]) => {
-            if (!(uuid === this.player.uuid)) {
-                pk.entries.push(entry);
+        Array.from(this.server.getPlayerManager().getPlayerList()).forEach(
+            ([uuid, entry]) => {
+                if (!(uuid === this.player.uuid)) {
+                    pk.entries.push(entry);
+                }
             }
-        });
+        );
 
         await this.sendDataPacket(pk);
     }
@@ -512,9 +602,10 @@ export default class PlayerConnection {
      */
     public async sendSpawn(player: Player) {
         if (!player.getUUID()) {
-            return this.server
+            this.server
                 .getLogger()
                 .error(`UUID for player=${player.getUsername()} is undefined`);
+            return;
         }
 
         const pk = new AddPlayerPacket();
