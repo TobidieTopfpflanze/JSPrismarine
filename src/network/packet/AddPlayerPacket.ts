@@ -3,7 +3,7 @@ import Identifiers from '../Identifiers';
 import UUID from '../../utils/UUID';
 
 export default class AddPlayerPacket extends DataPacket {
-    static NetID = Identifiers.AddPlayerPacket;
+    public static NetID = Identifiers.AddPlayerPacket;
 
     public uuid!: UUID;
     public name!: string;
@@ -22,6 +22,8 @@ export default class AddPlayerPacket extends DataPacket {
     public pitch!: number;
     public yaw!: number;
     public headYaw!: number;
+
+    public item!: number;
 
     public deviceId!: string;
     public buildPlatform!: number;
@@ -50,7 +52,7 @@ export default class AddPlayerPacket extends DataPacket {
         this.writeLFloat(this.yaw);
         this.writeLFloat(this.headYaw);
 
-        this.writeVarInt(0); // TODO: Item id
+        this.writeVarInt(this.item ?? 0);
         this.writeEntityMetadata(this.metadata);
 
         for (let i = 0; i < 5; i++) {

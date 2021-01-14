@@ -350,6 +350,16 @@ export default class PlayerConnection {
                     this.server.getCommandManager().getCommands().values()
                 ).find((cmd) => cmd.id.split(':')[1] === command[0])!;
 
+                if (!classCommand) {
+                    this.player
+                        .getServer()
+                        .getLogger()
+                        .warn(
+                            `Can't find corresponding command class for "${command[0]}"`
+                        );
+                    return;
+                }
+
                 if (
                     !this.player
                         .getServer()
@@ -646,6 +656,10 @@ export default class PlayerConnection {
         pk.pitch = this.player.pitch;
         pk.yaw = this.player.yaw;
         pk.headYaw = this.player.headYaw;
+
+        pk.item =
+            this.player.getInventory()?.getItemInHand()?.getItem()?.getId() ??
+            0;
 
         pk.deviceId = this.player.device?.id ?? '';
         pk.metadata = this.player.getMetadataManager().getMetadata();
