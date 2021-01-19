@@ -17,7 +17,7 @@ export default class CommandManager {
     private readonly server: Server;
     private dispatcher!: CommandDispatcher<CommandExecuter>;
 
-    constructor(server: Server) {
+    public constructor(server: Server) {
         this.server = server;
         this.dispatcher = new CommandDispatcher();
     }
@@ -235,7 +235,7 @@ export default class CommandManager {
      */
     public async dispatchCommand(sender: CommandExecuter, input = '') {
         try {
-            const parsed = this.dispatcher.parse(input, sender);
+            const parsed = this.dispatcher.parse(input.trim(), sender);
             const id = parsed.getReader().getString().split(' ')[0];
 
             // Get command from parsed string
@@ -259,7 +259,7 @@ export default class CommandManager {
             }
 
             let res: string[] = [];
-            if (command?.register && (command as any).execute) {
+            if (!command?.register && command?.execute) {
                 // Legacy commands
                 this.server
                     .getLogger()
@@ -268,8 +268,8 @@ export default class CommandManager {
                         'CommandManager/dispatchCommand'
                     );
                 res.push(
-                    await (command as any).execute(
-                        sender,
+                    await command.execute(
+                        sender as any,
                         parsed
                             .getReader()
                             .getString()

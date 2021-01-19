@@ -17,7 +17,7 @@ export default class LevelDB extends Provider {
     private readonly server: Server;
     private readonly db: Level;
 
-    constructor(levelPath: string, server: Server) {
+    public constructor(levelPath: string, server: Server) {
         super(levelPath);
         this.db = new Level(path.join(levelPath, 'db'));
         this.server = server;
@@ -78,8 +78,18 @@ export default class LevelDB extends Provider {
                                     .getLogger()
                                     .warn('Unsupported sub chunk version');
                             }
-                        } catch {
-                            // NO-OP
+                        } catch (error) {
+                            if (!error.notFound) {
+                                this.server
+                                    .getLogger()
+                                    .warn(
+                                        `Failed to read chunk at ${x}.${z}: ${error}`,
+                                        'LevelDB/readChunk'
+                                    );
+                                this.server
+                                    .getLogger()
+                                    .silly(error.stack, 'LevelDB/readChunk');
+                            }
                         }
                     }
 
@@ -131,7 +141,7 @@ export default class LevelDB extends Provider {
     /**
      * Serialize a chunk into the database asynchronously.
      */
-    async writeChunk(chunk: Chunk): Promise<void> {
+    public async writeChunk(chunk: Chunk): Promise<void> {
         return new Promise(async (resolve, reject) => {
             try {
                 const index = LevelDB.chunkIndex(chunk.getX(), chunk.getZ());
@@ -168,7 +178,7 @@ export default class LevelDB extends Provider {
      * x and z, used to indentify chunks
      * in the db.
      */
-    static chunkIndex(chunkX: number, chunkZ: number): string {
+    public static chunkIndex(chunkX: number, chunkZ: number): string {
         const stream = new BinaryStream();
         stream.writeLInt(chunkX);
         stream.writeLInt(chunkZ);
