@@ -40,11 +40,11 @@ A dedicated Minecraft Bedrock Edition server written in TypeScript with focus on
 
 Prebuilt binaries will be provided once a stable release is out, these will not require a node environment. For now however, you can either follow the steps bellow or download the [latest nightly](https://github.com/JSPrismarine/JSPrismarine/actions?query=branch%3Amaster+workflow%3A%22Build+artifacts%22) (which may or may not work).
 
--   Linux/MacOS/Unix based OS or Windows (which may require WSL)
-    -   You need [Node.js](https://nodejs.org) v14.x and [npm](https://www.npmjs.com).
+-   Linux/MacOS/Unix based OS or Windows (requires WSL)
+    -   You need [Node.js](https://nodejs.org) v14+, [npm](https://www.npmjs.com) v7+ and [lerna](https://lerna.js.org/).
     -   Clone the repository `git clone https://github.com/JSPrismarine/JSPrismarine.git`.
     -   Go in the cloned repository `cd JSPrismarine`
-    -   Install dependencies `npm install`
+    -   Install dependencies `npm install` and `lerna bootstrap`.
     -   Before running production build you have to build it `npm run build`
     -   You're done, you can run it using `npm run start` (or `npm run dev` for development)
 
@@ -67,6 +67,12 @@ Prebuilt binaries will be provided once a stable release is out, these will not 
         -   Open Windows PowerShell as administrator
         -   Run this command: `CheckNetIsolation LoopbackExempt -a -n="Microsoft.MinecraftUWP_8wekyb3d8bbwe"`
         -   Open Minecraft and add a server with the ip `127.0.0.1`
+
+## Documentation
+
+-   [Running JSPrismarine](documentation/running.md)
+-   [Publish a new version](documentation/publish-package.md)
+-   [Experimental flags](documentation/experimental-flags.md)
 
 ## Remarks
 
